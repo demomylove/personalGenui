@@ -51,17 +51,23 @@ export class AGUIClient {
     // Close any previous stream before starting a new one to avoid duplicate listeners
     this.es?.close();
 
-    this.es = new EventSource(this.endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-      body: JSON.stringify({
+    const requestBody = {
         messages: [{ role: 'user', content: userMessage }],
         state: stateToSend,
         sessionId: this.sessionId,
-      }),
+    };
+    
+    console.log('[AGUIClient Request] URL:', this.endpoint);
+    console.log('[AGUIClient Request] Body:', JSON.stringify(requestBody, null, 2));
+
+    this.es = new EventSource(this.endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      body: JSON.stringify(requestBody),
     });
 
     this.es.addEventListener('message', (event: any) => {
+      console.log('[AGUIClient Stream] data:', event.data);
       if (event.data === '[DONE]') {
         this.listeners.onDone?.(); // signal completion
         this.es?.close();

@@ -58,8 +58,22 @@ const ChatScreen = () => {
    * 处理用户提交消息时的发送操作。
    * 启动 API 调用序列：意图识别 -> DSL -> 渲染。
    */
-  const handleSend = async () => {
-    const text = inputText.trim();
+  /**
+   * 处理用户提交消息时的发送操作。
+   * 启动 API 调用序列：意图识别 -> DSL -> 渲染。
+   * @param contentOptional 可选的直接文本输入（用于解决 ASR 异步 State 更新问题）
+   */
+  const handleSend = async (contentOptional?: string | any) => {
+    // 优先使用直接传入的文本（如果是字符串），否则使用 State 中的文本
+    // 注意：TouchableOpacity 的 onPress 会传入事件对象，需要忽略
+    let text = '';
+    if (typeof contentOptional === 'string') {
+        text = contentOptional;
+    } else {
+        text = inputText;
+    }
+    text = text.trim();
+    
     if (!text) return;
 
     // 检测是否为修改请求

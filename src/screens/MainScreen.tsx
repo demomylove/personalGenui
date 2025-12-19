@@ -30,6 +30,8 @@ export default function MainScreen({
   const [input, setInput] = useState('');
   // 初始不自动加载，等用户点击"生成UI"
   const [loading, setLoading] = useState(false);
+  // 新增：维护完整的 Agent 状态，用于渲染时的数据绑定
+  const [agentState, setAgentState] = useState<any>({});
 
   const send = async (prompt: string) => {
     setLoading(true);
@@ -45,6 +47,11 @@ export default function MainScreen({
           dataContext.weather = weather;
         }
       }
+      
+      // 更新本地状态，以便立即可以使用（AGUIClient 也会合并）
+      const newAgentState = { ...agentState, ...{ dataContext } };
+      setAgentState(newAgentState);
+      
       await client.sendMessage(prompt, { dataContext });
     } catch (e: any) {
       Alert.alert('请求失败', e.message);
@@ -58,6 +65,10 @@ export default function MainScreen({
         setStatusText((prev) => prev + delta);
       },
       onStateUpdate: (newState) => {
+        // 同步最新的 Agent 状态（包含 dataContext）
+        console.log('[MainScreen] State Update:', JSON.stringify(newState.dataContext || {}));
+        setAgentState(newState);
+        
         if (newState.dsl) {
           setCurrentDsl(newState.dsl);
           setStatus('drawing');
@@ -141,7 +152,8 @@ export default function MainScreen({
             {/* 如果消息包含DSL，则在消息下方渲染DSL组件 */}
             {item.dsl && (
               <View style={styles.dslContainer}>
-                {renderComponent(item.dsl, { title: 'demo' }, () => { })}
+                {/* 使用 agentState.dataContext 作为数据上下文，而非硬编码的 title: demo */}
+                {renderComponent(item.dsl, agentState.dataContext || agentState || {}, () => { })}
               </View>
             )}
           </View>

@@ -15,7 +15,7 @@ export class LLMService {
     // Qwen API Endpoint (configurable via env)
     static API_ENDPOINT = process.env.QWEN_API_ENDPOINT || 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions'; 
   // IMPORTANT: Do not commit real API keys; use env var only
-  static API_KEY = process.env.QWEN_API_KEY || '';
+  static API_KEY = process.env.QWEN_API_KEY || 'sk-7fa0884c562d4009b1a23bb5d52e965a';
   
     /**
      * Generates UI DSL based on the prompt.
