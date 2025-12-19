@@ -27,6 +27,7 @@ type Listener = {
   onToolEnd: (name: string, result: any) => void;
   onHumanInputRequest: (prompt: string, options?: string[]) => Promise<any>;
   onError: (error: string) => void;
+  onDone: () => void;
 };
 
 export class AGUIClient {
@@ -35,7 +36,7 @@ export class AGUIClient {
   private listeners: Partial<Listener> = {};
   private sessionId: string | null = null;
 
-  constructor(private endpoint: string) {}
+  constructor(private endpoint: string) { }
 
   setListeners(listeners: Partial<Listener>) {
     this.listeners = listeners;
@@ -62,6 +63,7 @@ export class AGUIClient {
 
     this.es.addEventListener('message', (event: any) => {
       if (event.data === '[DONE]') {
+        this.listeners.onDone?.(); // signal completion
         this.es?.close();
         return;
       }

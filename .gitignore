@@ -65,3 +65,4 @@ xcuserdata/
 
 ## Stray localhost marker files
 card-style-genui-server/127.0.0.1:0:
+/android/spotifyAppRemote/.gradle/

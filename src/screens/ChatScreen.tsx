@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   FlatList,
   TouchableOpacity,
   SafeAreaView,
@@ -13,6 +12,7 @@ import {
 import TaskCard, { TaskStatus } from '../components/TaskCard';
 import { omphalos, weather, music, poi } from '../api/senseClient';
 import { DslFactory } from '../dsl/DslFactory';
+import VoiceInput from '../components/VoiceInput';
 
 interface Message {
   id: string;
@@ -219,15 +219,16 @@ const ChatScreen = () => {
         />
 
         <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
+          <VoiceInput
+            style={styles.voiceInput}
             value={inputText}
             onChangeText={setInputText}
-            placeholder="请输入..."
+            placeholder="请输入或点击麦克风说话..."
             onSubmitEditing={handleSend}
+            disabled={loading}
           />
           <TouchableOpacity onPress={handleSend} style={styles.sendButton} disabled={loading}>
-             <Text style={{ opacity: loading ? 0.3 : 1 }}>➡️</Text> 
+             <Text style={{ opacity: loading ? 0.3 : 1 }}>➡️</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -268,6 +269,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#DDD',
     alignItems: 'center',
+  },
+  voiceInput: {
+    flex: 1,
+    height: 40,
   },
   input: {
     flex: 1,
