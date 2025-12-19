@@ -7,11 +7,20 @@ import TaskCard, { TaskStatus } from '../components/TaskCard';
 import VoiceInput from '../components/VoiceInput';
 import RobotIcon from '../components/RobotIcon';
 import UserIcon from '../components/UserIcon';
+import { PermissionStatus } from '../utils/Permissions';
 
 // 统一服务器地址（与 GenUITestScreen 保持一致）
 const SERVER_URL = 'http://10.210.0.58:3001/api/chat';
 
-export default function MainScreen() {
+interface MainScreenProps {
+  initialPermissionStatus?: PermissionStatus | null;
+  onPermissionRequest?: () => Promise<PermissionStatus>;
+}
+
+export default function MainScreen({
+  initialPermissionStatus = null,
+  onPermissionRequest
+}: MainScreenProps) {
   const client = useRef(new AGUIClient(SERVER_URL)).current;
   const flatListRef = useRef<FlatList>(null);
   const [status, setStatus] = useState<TaskStatus>('thinking');
@@ -169,6 +178,8 @@ export default function MainScreen() {
               setInput('');
             }
           }}
+          initialPermissionStatus={initialPermissionStatus}
+          onPermissionRequest={onPermissionRequest}
         />
       </View>
     </SafeAreaView>
