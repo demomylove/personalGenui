@@ -34,7 +34,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
   style,
   disabled = false,
   asrType = 'unisound',
-  duplexSwitch = false,
+  duplexSwitch = true,
   hotwordJsonStr = '{"hot":[]}',
   initialPermissionStatus = null,
   onPermissionRequest,
@@ -136,7 +136,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
 
     try {
       setIsListening(true);
-      await VoiceInputModule.startContinuousAsr();
+      await VoiceInputModule.startAsr();
     } catch (error) {
       console.error('启动ASR失败:', error);
       setIsListening(false);
@@ -147,7 +147,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
   const stopListening = async () => {
     // 即使isListening为false也要尝试停止，因为可能存在后台识别
     try {
-      await VoiceInputModule.stopContinuousAsr();
+      await VoiceInputModule.stopAsr();
       setIsListening(false);
       setInterimText(''); // 清除临时文本
     } catch (error) {

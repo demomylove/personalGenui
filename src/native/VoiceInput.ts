@@ -23,8 +23,8 @@ export class VoiceInputModule {
    */
   static async initAsr(
     asrType: string = 'unisound',
-    duplexSwitch: boolean = false,
-    hotwordJsonStr: string = '{}'
+    duplexSwitch: boolean = true,
+    hotwordJsonStr: string = '{"hot":[]}'
   ): Promise<string> {
     return VoiceInput.initAsr(asrType, duplexSwitch, hotwordJsonStr);
   }
@@ -42,20 +42,6 @@ export class VoiceInputModule {
    */
   static async stopAsr(): Promise<string> {
     return VoiceInput.stopAsr();
-  }
-
-  /**
-   * 开始持续ASR识别
-   */
-  static async startContinuousAsr(): Promise<string> {
-    return VoiceInput.startContinuousAsr();
-  }
-
-  /**
-   * 停止持续ASR识别
-   */
-  static async stopContinuousAsr(): Promise<string> {
-    return VoiceInput.stopContinuousAsr();
   }
 
   /**

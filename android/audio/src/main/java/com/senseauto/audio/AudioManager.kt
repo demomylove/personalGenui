@@ -108,8 +108,9 @@ class AudioManager : IAsrListener, ITtsListener, IWakeupListener {
         duplexSwitch: Boolean,
         hotwordJsonStr: String,
     ) {
+        val jsonString = ApplicationModule.application.readJsonFromAssets("hotword.json")
         Logger.i("initAsr: asrType is $asrType, duplexSwitch is $duplexSwitch")
-        Logger.i("initAsr: hotword jsonStr is $hotwordJsonStr")
+        Logger.i("initAsr: hotword jsonStr is $jsonString")
         if (asrType == "unisound") {
             asrManager = AsrManager(asrType, ApplicationModule.application)
         } else if (asrType == "iflytek") {
@@ -121,7 +122,7 @@ class AudioManager : IAsrListener, ITtsListener, IWakeupListener {
         asrManager.setAsrListener(this@AudioManager)
         // 需要在init前配置全双工与否，否则不生效
         asrManager.setFullDuplexMode(duplexSwitch)
-        asrManager.uploadHotword(hotwordJsonStr)
+        asrManager.uploadHotword(jsonString)
         asrManager.init()
     }
 
