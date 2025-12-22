@@ -14,7 +14,8 @@ export interface PoiItem {
 export class AmapService {
   // User provided key
   // IMPORTANT: Do not commit real API keys; use env var only
-  private static API_KEY = process.env.AMAP_API_KEY || '';
+  // IMPORTANT: Do not commit real API keys; use env var only
+  private static API_KEY = process.env.AMAP_API_KEY || 'df77469c39902532b069d6273e681c77';
   
   // APIs
   private static TEXT_SEARCH_URL = 'https://restapi.amap.com/v3/place/text';
@@ -62,6 +63,103 @@ export class AmapService {
       console.error('[AmapService] Request failed:', error);
       return this.getMockPois(keyword);
     }
+  }
+
+  /**
+   * Get Adcode for a city name using Geocoding API
+   */
+  static async getAdcode(city: string): Promise<string | null> {
+      if (!this.API_KEY) return null;
+      
+      try {
+          const url = `${this.GEOCODING_API_URL}?address=${encodeURIComponent(city)}&key=${this.API_KEY}`;
+          console.log(`[AmapService] Geo Fetching: ${url}`);
+          const response = await fetch(url);
+          const data: any = await response.json();
+          
+          if (data.status === '1' && data.geocodes && data.geocodes.length > 0) {
+              return data.geocodes[0].adcode;
+          }
+      } catch (e) {
+          console.error('[AmapService] getAdcode failed:', e);
+      }
+      return null;
+  }
+
+  /**
+   * Get Live Weather for a city (default Shanghai)
+   */
+  static async getWeather(city: string = 'Shanghai'): Promise<any> {
+      if (!this.API_KEY) {
+          console.log('[AmapService] No API Key, returning Mock Weather.');
+          return this.getMockWeather();
+      }
+
+      try {
+          // 1. Get Adcode
+          const adcode = await this.getAdcode(city) || '310000'; // Default to Shanghai if fail
+
+          // 2. Get Weather
+          const url = `${this.WEATHER_API_URL}?city=${adcode}&key=${this.API_KEY}&extensions=base`;
+          console.log(`[AmapService] Weather Fetching: ${url}`);
+          const response = await fetch(url);
+          const data: any = await response.json();
+
+          if (data.status === '1' && data.lives && data.lives.length > 0) {
+              const live = data.lives[0];
+              // Map to our dataContext structure
+              return {
+                  city: live.city,
+                  date: { 
+                      year: new Date().getFullYear(),
+                      month: new Date().getMonth() + 1, 
+                      day: new Date().getDate(),
+                      weekday: new Date().toLocaleDateString('zh-CN', { weekday: 'short' }) // e.g. "周六"
+                  },
+                  high: live.temperature, // Live API doesn't give high/low, use current for both or omit
+                  low: live.temperature,
+                  cond: live.weather,
+                  extra: `湿度 ${live.humidity}% ${live.winddirection}风${live.windpower}级`,
+                  weather: {
+                      location: { name: live.city },
+                      current: { 
+                          tempC: live.temperature, 
+                          text: live.weather, 
+                          humidity: live.humidity, 
+                          windDir: live.winddirection, 
+                          windPower: live.windpower 
+                      },
+                      reportTime: live.reporttime
+                  }
+              };
+          }
+      } catch (e) {
+          console.error('[AmapService] getWeather failed:', e);
+      }
+      
+      return this.getMockWeather();
+  }
+
+  private static getMockWeather(): any {
+      return {
+            city: "上海(Mock)",
+            date: { year: 2025, month: 12, day: 20, weekday: "周六" },
+            high: "12",
+            low: "5",
+            cond: "多云",
+            extra: "AQI 55 良",
+            weather: {
+                location: { name: "上海" },
+                current: { 
+                    tempC: "12", 
+                    text: "多云", 
+                    humidity: "55", 
+                    windDir: "东北风", 
+                    windPower: "3" 
+                },
+                reportTime: "2025-12-19 16:00"
+            }
+      };
   }
 
   private static getMockPois(keyword: string): PoiItem[] {

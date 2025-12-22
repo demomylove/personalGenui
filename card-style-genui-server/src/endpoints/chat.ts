@@ -16,6 +16,9 @@ const stateStore = new Map<string, any>();
 export const chatHandler = async (req: Request, res: Response) => {
   const { messages, state, sessionId: reqSessionId } = req.body;
   
+  const startTotal = Date.now();
+  console.log(`[Perf] [1. Request Start] New Chat Request: ${new Date().toISOString()}`);
+  
   // 1. Session Management
   const sessionId = reqSessionId || uuidv4();
   // Initialize state if new session, or retrieve existing
@@ -74,7 +77,11 @@ export const chatHandler = async (req: Request, res: Response) => {
             let keyword = '咖啡';
             if (lowerMsg.includes('咖啡')) keyword = '咖啡';
 
+            const startAmap = Date.now();
+            console.log(`[Perf] [2.1 Amap Start] Fetching POI data...`);
             const pois = await AmapService.searchPoi(keyword);
+            console.log(`[Perf] [2.1 Amap End] Duration: ${Date.now() - startAmap}ms`);
+
             if (pois.length > 0) {
                  if (!serverState.dataContext) serverState.dataContext = {};
                  serverState.dataContext.pois = pois;
@@ -97,36 +104,31 @@ export const chatHandler = async (req: Request, res: Response) => {
         
         if (!serverState.dataContext) serverState.dataContext = {};
         
-        // Mock Weather Data
-        // We provide both flat fields (for simple templates) and nested objects (for complex bindings)
-        const mockWeather = {
-            city: "上海",
-            date: { year: 2025, month: 12, day: 20, weekday: "周六" },
-            high: "12",
-            low: "5",
-            cond: "多云",
-            extra: "AQI 55 良",
-            // Nested structure matching the user's screenshot: ${weather.location.name}
-            weather: {
-                location: { name: "上海" },
-                current: { 
-                    tempC: "12", 
-                    text: "多云", 
-                    humidity: "55", 
-                    windDir: "东北风", 
-                    windPower: "3" 
-                },
-                reportTime: "2025-12-19 16:00"
-            }
-        };
-        
-        Object.assign(serverState.dataContext, mockWeather);
+        try {
+            const startWeather = Date.now();
+            console.log(`[Perf] [2.2 Weather Start] Fetching real weather data...`);
+            
+            // TODO: Extract city from user message (e.g. via simple regex or LLM)
+            // For now, default to Shanghai or check intent
+            const city = '上海'; 
+            
+            const weatherData = await AmapService.getWeather(city);
+            console.log(`[Perf] [2.2 Weather End] Duration: ${Date.now() - startWeather}ms`);
+            
+            Object.assign(serverState.dataContext, weatherData);
+        } catch (e) {
+            console.error("Failed to fetch real weather:", e);
+        }
     }
     
     // 3. Construct Prompt
     const dataContext = serverState.dataContext || {}; 
     const currentDsl = serverState.dsl || null;
+
+    
+    const startPrompt = Date.now();
     let prompt = PromptBuilder.constructPrompt(lastUserMessage, dataContext, currentDsl);
+    console.log(`[Perf] [3. Prompt Build] Duration: ${Date.now() - startPrompt}ms`);
     
     // Append force instruction if any
     if (additionalInstruction) {
@@ -134,10 +136,22 @@ export const chatHandler = async (req: Request, res: Response) => {
     }
     
     // 4. Call LLM (Streaming - Simplified to await for now as LLMService doesn't support stream yet)
-    let fullResponse = await LLMService.generateUI(prompt);
+    // 4. Call LLM
+    const startLLM = Date.now();
+    console.log(`[Perf] [4. LLM Request Start] Calling LLM...`);
     
-    // Simulate streaming if needed for client UX, or just process it.
-    // In future, update LLMService to return ReadableStream.
+    // Keep-alive loop
+    const keepAliveInterval = setInterval(() => {
+        res.write(': keep-alive\n\n');
+    }, 3000);
+
+    let fullResponse;
+    try {
+        fullResponse = await LLMService.generateUI(prompt);
+    } finally {
+        clearInterval(keepAliveInterval);
+    }
+    console.log(`[Perf] [4. LLM Request End] Duration: ${Date.now() - startLLM}ms`);
     
     console.log("LLM Response:", fullResponse);
 
@@ -150,8 +164,10 @@ export const chatHandler = async (req: Request, res: Response) => {
     }
     
     let dslObject: any;
+    const startDSA = Date.now();
     try {
         dslObject = JSON.parse(dslString);
+        console.log(`[Perf] [5. DSL Parse] JSON Parse OK`);
     } catch (e) {
         console.error("Failed to parse LLM JSON:", e);
         // Fallback: treat as plain text message?
@@ -206,11 +222,15 @@ export const chatHandler = async (req: Request, res: Response) => {
     }
 
     sendEvent('DONE', {});
+    
+    console.log(`[Perf] [6. DSL Patching & Response] Duration: ${Date.now() - startDSA}ms`);
+    console.log(`[Perf] [Total Request] Duration: ${Date.now() - startTotal}ms`);
     res.end();
 
   } catch (error: any) {
     console.error("Error in chatHandler:", error);
     sendEvent('ERROR', { message: error.message });
+    console.log(`[Perf] [Total Request (Error)] Duration: ${Date.now() - startTotal}ms`);
     res.end();
   }
 };
@@ -239,27 +259,8 @@ export const chatOnceHandler = async (req: Request, res: Response) => {
         
         if (!serverState.dataContext) serverState.dataContext = {};
         
-        // Mock Weather Data
-        const mockWeather = {
-            city: "上海",
-            date: { year: 2025, month: 12, day: 20, weekday: "周六" },
-            high: "12",
-            low: "5",
-            cond: "多云",
-            extra: "AQI 55 良",
-            weather: {
-                location: { name: "上海" },
-                current: { 
-                    tempC: "12", 
-                    text: "多云", 
-                    humidity: "55", 
-                    windDir: "东北风", 
-                    windPower: "3" 
-                },
-                reportTime: "2025-12-19 16:00"
-            }
-        };
-        Object.assign(serverState.dataContext, mockWeather);
+        const weatherData = await AmapService.getWeather('上海');
+        Object.assign(serverState.dataContext, weatherData);
     }
 
     const currentDsl = serverState.dsl || null;

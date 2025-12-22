@@ -14,11 +14,13 @@ type AGUIEvent =
   | { type: 'TEXT_MESSAGE_CONTENT'; delta: string }
   | { type: 'MESSAGE_START'; messageId: string }
   | { type: 'MESSAGE_END'; messageId: string }
-  | { type: 'STATE_DELTA'; patch: any[] }
+  | { type: 'STATE_DELTA'; delta: any[] }
   | { type: 'TOOL_CALL_START'; name: string; args: any }
   | { type: 'TOOL_CALL_END'; name: string; result: any }
   | { type: 'REQUEST_HUMAN_INPUT'; prompt: string; options?: string[] }
-  | { type: 'THREAD_START' | 'THREAD_END' };
+  | { type: 'THREAD_START' | 'THREAD_END' }
+  | { type: 'DONE' }
+  | { type: 'ERROR'; message: string };
 
 type Listener = {
   onMessageDelta: (delta: string) => void;
@@ -100,9 +102,9 @@ export class AGUIClient {
         // patches that assume missing parents are created automatically. The library may throw
         // in that case, so fall back to a permissive patcher that creates parents.
         try {
-          this.currentState = apply_patch(this.currentState, (event as any).patch);
+          this.currentState = apply_patch(this.currentState, (event as any).delta);
         } catch (_err) {
-          this.currentState = this.applySimplePatch(this.currentState, (event as any).patch);
+          this.currentState = this.applySimplePatch(this.currentState, (event as any).delta);
         }
         this.listeners.onStateUpdate?.(this.currentState);
         break;
@@ -111,6 +113,14 @@ export class AGUIClient {
         break;
       case 'TOOL_CALL_END':
         this.listeners.onToolEnd?.((event as any).name, (event as any).result);
+        break;
+      case 'DONE':
+        this.listeners.onDone?.();
+        this.close();
+        break;
+      case 'ERROR':
+        this.listeners.onError?.((event as any).message || 'Unknown Error');
+        this.close();
         break;
       default:
         break;

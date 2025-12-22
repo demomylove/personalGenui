@@ -120,7 +120,7 @@ export class LLMService {
             'Authorization': `Bearer ${this.API_KEY}`
           },
           body: JSON.stringify({
-            model: "qwen-plus",
+            model: "qwen-flash",
             messages: [
               { role: "system", content: "You are a helpful assistant. Please respond with valid JSON." },
               { role: "user", content: prompt }
