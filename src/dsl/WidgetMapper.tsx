@@ -197,6 +197,7 @@ export class WidgetMapper {
               backgroundColor: props.background_color || 'white',
               borderRadius: props.shape_border_radius || 0,
               margin: this.parsePadding(props.margin), // using parsePadding for margin list
+              padding: this.parsePadding(props.padding), // Added Text Padding Support
               elevation: props.elevation,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 2 },

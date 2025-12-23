@@ -12,6 +12,88 @@ export class PromptBuilder {
     const dataString = JSON.stringify(dataContext, null, 2);
     const dslString = currentDsl ? JSON.stringify(currentDsl, null, 2) : "None (Initial Generation)";
 
+                 let styleGuide = `
+# Design System & Style Guide (STRICT)
+You are a Senior UI Designer known for "Apple-style" minimalism but with vibrant, context-aware aesthetics.
+1. **Layout**:
+   - **Weather Cards**: 
+     - MUST NOT fill the width. Use specific width (e.g., 340) or large horizontal margins.
+     - Structure:
+       - Top Row: City (Left), Date (Right).
+       - Middle Row: Icon (Left), Temperature Column (Right).
+       - Bottom: Condition (Center).
+2. **Typography**:
+   - **City**: font_size 24, font_weight 'bold'.
+   - **Temp**: font_size 72+, font_weight 'bold', color '#E65100' (Deep Orange).
+   - **Date/Metadata**: font_size 16, color '#BF360C'.
+3. **Colors**:
+   - **Weather Card Background**: Inner Card: '#FFCC80' (Medium Orange). Root Container: '#FFFFFF' (White/Transparent).
+   - **Text**: Adapted to background.
+`;
+
+    let exampleSection = `
+# Example: Sunny Weather Card (Compact)
+User: "Beijing Weather"
+Data: { "temp": "26", "city": "Beijing", "date": "2025-12-23 Tue", "cond": "Sunny", "feels_like": "28" }
+Output:
+{
+  "component_type": "Center",
+  "properties": { "background_color": "#FFFFFF" },
+  "children": [
+    {
+      "component_type": "Card",
+      "properties": {
+        "background_color": "#FFB74D", 
+        "padding": 24, 
+        "shape_border_radius": 24, 
+        "elevation": 8,
+        "width": 360
+      },
+      "children": [
+        {
+          "component_type": "Column",
+          "properties": { "cross_axis_alignment": "start" },
+          "children": [
+            {
+              "component_type": "Row",
+              "properties": { "main_axis_alignment": "space_between", "width": "100%" },
+              "children": [
+                { "component_type": "Text", "properties": { "text": "Beijing", "font_size": 24, "font_weight": "bold", "color": "#333333" } },
+                { "component_type": "Text", "properties": { "text": "2025-12-23 Tue", "font_size": 14, "color": "#666666" } }
+              ]
+            },
+            { "component_type": "SizedBox", "properties": { "height": 16 } },
+            {
+              "component_type": "Row",
+              "properties": { "main_axis_alignment": "space_around", "width": "100%" },
+              "children": [
+                { "component_type": "Text", "properties": { "text": "☀️", "font_size": 64, "color": "#FFC107" } },
+                {
+                   "component_type": "Column",
+                   "properties": { "cross_axis_alignment": "end" },
+                   "children": [
+                     { "component_type": "Text", "properties": { "text": "26°C", "font_size": 64, "font_weight": "bold", "color": "#FF9800" } },
+                     { "component_type": "Text", "properties": { "text": "Feels 28°C", "font_size": 16, "color": "#5D4037" } }
+                   ]
+                }
+              ]
+            },
+            { "component_type": "SizedBox", "properties": { "height": 16 } },
+            { 
+               "component_type": "Center", 
+               "properties": {},
+               "children": [
+                 { "component_type": "Text", "properties": { "text": "Sunny", "font_size": 18, "font_weight": "bold", "color": "#4E342E" } }
+               ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+`;
+
     return `
 # Role
 You are an expert UI Generator for a React Native application. Your job is to compile User Queries and Data into a specific JSON DSL based on the provided Component Library.
@@ -29,52 +111,6 @@ ${DSL_SCHEMA_DESCRIPTION}
 5. If the data is an array, you likely need a Column or Row to map over it, but the output must still be a static DSL structure (or specific list components if available).
 6. **Context Awareness**: You are provided with the **Current UI DSL**. If the User Query implies a modification (e.g., "change color to red", "add a button"), you MUST return the COMPLETE updated DSL based on the Current DSL. Do NOT return a diff. Return the full new state.
 
-# Design System & Style Guide (STRICT)
-You are a Senior UI Designer known for "Apple-style" minimalism and premium aesthetics.
-1. **Layout**:
-   - Use Card as the main container for grouped information.
-   - Use generous padding (16, 20, 24). Avoid cramped layouts.
-   - Use Row with spacebetween for label-value pairs (e.g., "Temp" on left, "20°C" on right).
-2. **Typography**:
-   - **Titles**: font_size 20+, font_weight 'bold', color '#333333'.
-   - **Values**: font_size 32+, font_weight 'bold', color '#000000'.
-   - **Metadata**: font_size 12-14, color '#757575'.
-3. **Colors** (Use these EXACT hex codes):
-   - Backgrounds: '#F0F8FF' (Card - Light Blue), '#F5F5F7' (Page/App).
-   - Accents: '#007AFF' (Blue), '#FF9500' (Orange), '#34C759' (Green).
-   - Text: '#1C1C1E' (Primary), '#8E8E93' (Secondary).
-4. **Visuals**:
-   - Always add elevation: 4 and shape_border_radius: 16 to Cards.
-   - Use SizedBox for spacing (height: 8, 16).
-
-# Example: High-Quality Weather Card (Atomic)
-User: "Shanghai Weather"
-Data: { "temp": "24", "cond": "Cloudy", "city": "Shanghai" }
-Output:
-{
-  "component_type": "Card",
-  "properties": {
-    "background_color": "#F0F8FF",
-    "padding": 20,
-    "shape_border_radius": 16,
-    "elevation": 4,
-    "margin": 16
-  },
-  "children": [
-    {
-      "component_type": "Column",
-      "properties": { "cross_axis_alignment": "center" },
-      "children": [
-        { "component_type": "Text", "properties": { "text": "Shanghai", "font_size": 24, "font_weight": "bold", "color": "#1C1C1E" } },
-        { "component_type": "SizedBox", "properties": { "height": 8 } },
-        { "component_type": "Text", "properties": { "text": "24°", "font_size": 48, "font_weight": "bold", "color": "#007AFF" } },
-        { "component_type": "SizedBox", "properties": { "height": 8 } },
-        { "component_type": "Text", "properties": { "text": "Cloudy", "font_size": 16, "color": "#8E8E93" } }
-      ]
-    }
-  ]
-}
-
 # Context
 ## User Query
 "${userQuery}"
@@ -85,35 +121,8 @@ ${dataString}
 ## Current UI DSL
 ${dslString}
 
-# Client Capabilities (Tools)
-The client supports the following native tools. If the user's request implies performing an action (like playing music), perform the action by returning a JSON object with the "tool_call" key.
-
-- playMusic(songId: string): Plays the song with the given ID.
-- showToast(message: string): Shows a toast message.
-
-# Human Input Request (HITL)
-If you need to ask the user for information or confirmation (e.g., "confirm payment", "choose an option"), return a JSON object with the "request_human_input" key.
-
-## Tool Call & Format
-If you want to call a tool, return ONLY this JSON:
-{
-  "tool_call": {
-    "name": "toolName",
-    "args": { ... }
-  }
-}
-
-## Human Input Format
-If you want to ask the user, return ONLY this JSON:
-{
-  "request_human_input": {
-    "prompt": "Please confirm payment of $50",
-    "options": ["Yes", "No"] // Optional
-  }
-}
-
 # Output Format
-Return ONLY the JSON. Either a UI DSL object, a Tool Call object, or a Human Input Request object.
+Return ONLY the JSON.
 `;
   }
 }
