@@ -6,8 +6,8 @@ import {
   StyleSheet,
   ViewStyle,
   ActivityIndicator,
-  Switch,
   Alert,
+  PanResponder,
 } from 'react-native';
 import VoiceInputModule, { VoiceInputEvents } from '../native/VoiceInput';
 import PermissionManager, { PermissionStatus } from '../utils/Permissions';
@@ -43,9 +43,10 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
   const [isInitializing, setIsInitializing] = useState(false);
   const [interimText, setInterimText] = useState('');
   const [isInitialized, setIsInitialized] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus | null>(initialPermissionStatus);
   const [permissionLoading, setPermissionLoading] = useState(false);
+  const [pressing, setPressing] = useState(false);
+  const [accumulatedText, setAccumulatedText] = useState('');
   const listenersRef = useRef<any[]>([]);
 
   // 初始化ASR
@@ -88,23 +89,35 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
 
     const onAsrResultListener = VoiceInputModule.addEventListener('onAsrResult', (event) => {
       console.log('ASR识别结果:', event.result);
+      // 在长按过程中，只更新临时文本，不累积
+      // 累积逻辑移到onAsrEnd中处理
       setInterimText(event.result);
     });
 
     const onAsrEndListener = VoiceInputModule.addEventListener('onAsrEnd', (event) => {
       console.log('ASR识别结束:', event.finalResult);
+      
+      // 在长按过程中，将最终结果累积到总文本中
+      if (pressing && event.finalResult) {
+        setAccumulatedText(prev => prev + event.finalResult);
+      }
+      
+      // 清除临时文本
       setInterimText('');
-      if (onChangeText && event.finalResult) {
-        onChangeText(event.finalResult);
+      
+      // 只有在非长按状态下（即开关模式）才立即处理结果
+      // 长按模式下，我们会在松开手指时处理累积的文本
+      if (!pressing && event.finalResult) {
+        if (onChangeText) {
+          onChangeText(event.finalResult);
+        }
+        // 立即提交，不使用setTimeout
+        if (onSubmitEditing) {
+          onSubmitEditing(event.finalResult);
+        }
       }
-      // 立即提交，不使用setTimeout
-      if (onSubmitEditing && event.finalResult) {
-        onSubmitEditing(event.finalResult);
-      }
-      setIsListening(false);
-
-      // 注意：不再在这里手动重启ASR，因为Android端已经在持续模式下自动重启
-      // 这样可以避免重复启动导致的冲突
+      
+      // duplexSwitch=true模式下，引擎会自动持续识别，不需要手动重启
     });
 
     const onAsrErrorListener = VoiceInputModule.addEventListener('onAsrError', (event) => {
@@ -128,7 +141,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
       listenersRef.current.forEach(listener => listener.remove());
       listenersRef.current = [];
     };
-  }, [isInitialized, onChangeText, onSubmitEditing, voiceEnabled]);
+  }, [isInitialized, onChangeText, onSubmitEditing, pressing]);
 
   // 开始语音识别
   const startListening = async () => {
@@ -242,24 +255,56 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
     return false;
   };
 
-  // 语音开关切换
-  const toggleVoiceSwitch = async (enabled: boolean) => {
-    if (enabled) {
-      // 开启语音识别前先检查权限
-      const hasPermission = await checkAndRequestPermission();
-      if (hasPermission) {
-        setVoiceEnabled(true);
-        startListening();
-      } else {
-        // 权限获取失败，保持开关关闭状态
-        setVoiceEnabled(false);
-      }
-    } else {
-      // 关闭语音识别
-      setVoiceEnabled(false);
-      stopListening();
+  // 处理长按开始
+  const handlePressIn = async () => {
+    if (!isInitialized || isListening) return;
+    
+    // 检查权限
+    const hasPermission = await checkAndRequestPermission();
+    if (hasPermission) {
+      setPressing(true);
+      startListening();
     }
   };
+
+  // 处理长按结束
+  const handlePressOut = async () => {
+    setPressing(false);
+    if (isListening) {
+      await stopListening();
+    }
+    
+    // 如果有累积的文本，发送给父组件
+    if (accumulatedText.trim()) {
+      if (onChangeText) {
+        onChangeText(accumulatedText.trim());
+      }
+      if (onSubmitEditing) {
+        onSubmitEditing(accumulatedText.trim());
+      }
+      // 清空累积的文本
+      setAccumulatedText('');
+    }
+  };
+
+  // 创建PanResponder来处理长按
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
+      onMoveShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponderCapture: () => false,
+      onPanResponderReject: () => {
+        handlePressOut();
+      },
+      onPanResponderGrant: () => {
+        handlePressIn();
+      },
+      onPanResponderRelease: () => {
+        handlePressOut();
+      },
+    })
+  ).current;
 
   // 获取权限状态文本
   const getPermissionStatusText = () => {
@@ -282,7 +327,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
     <View style={[styles.container, style]}>
       <View style={styles.statusContainer}>
         <Text style={styles.statusText}>
-          {interimText || value || placeholder}
+          {pressing ? (accumulatedText + interimText || '正在录音...') : (interimText || value || placeholder)}
         </Text>
         {permissionLoading && (
           <ActivityIndicator
@@ -294,15 +339,29 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
       </View>
 
       <View style={styles.controlContainer}>
-        <View style={styles.switchContainer}>
-          <Text style={styles.switchLabel}>语音识别</Text>
-          <Switch
-            value={voiceEnabled}
-            onValueChange={toggleVoiceSwitch}
+        <View style={styles.micContainer}>
+          <TouchableOpacity
+            style={[
+              styles.micButton,
+              isListening && styles.micButtonActive,
+              pressing && styles.micButtonPressing,
+              (disabled || isInitializing || !isInitialized || permissionLoading) && styles.micButtonDisabled
+            ]}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
             disabled={disabled || isInitializing || !isInitialized || permissionLoading}
-            trackColor={{ false: '#767577', true: '#007AFF' }}
-            thumbColor={voiceEnabled ? '#ffffff' : '#f4f3f4'}
-          />
+            {...panResponder.panHandlers}
+          >
+            <Text style={[
+              styles.micIcon,
+              isListening && styles.micIconActive
+            ]}>
+              🎤
+            </Text>
+          </TouchableOpacity>
+          <Text style={styles.micHintText}>
+            {isListening ? '正在录音...' : '长按说话'}
+          </Text>
         </View>
         
         {getPermissionStatusText() ? (
@@ -360,15 +419,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  switchContainer: {
+  micContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  switchLabel: {
+  micButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  micButtonActive: {
+    backgroundColor: '#FF3B30',
+  },
+  micButtonPressing: {
+    transform: [{ scale: 0.95 }],
+    shadowOpacity: 0.2,
+  },
+  micButtonDisabled: {
+    backgroundColor: '#ccc',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  micIcon: {
+    fontSize: 24,
+    color: '#fff',
+  },
+  micIconActive: {
+    fontSize: 20,
+  },
+  micHintText: {
     fontSize: 16,
     color: '#333',
-    marginRight: 10,
   },
   permissionButton: {
     paddingHorizontal: 12,
@@ -386,24 +480,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#FF3B30',
     marginTop: 4,
-  },
-  micButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 10,
-  },
-  micButtonActive: {
-    backgroundColor: '#FF3B30',
-  },
-  micButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  micIcon: {
-    fontSize: 20,
   },
 });
 
