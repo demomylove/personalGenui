@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, Easing, StyleSheet } from 'react-native';
+import {View, Text, Animated, Easing, StyleSheet, Image} from 'react-native';
 
 export type TaskStatus = 'thinking' | 'thinkingComplete' | 'drawing' | 'completed';
 
@@ -73,7 +73,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ status, content }) => {
     <View style={styles.card}>
       <StatusRow
         label="思考中"
-        icon="🔄"
+        icon={require('../assets/ic_thinking.png')}
         active={status === 'thinking'}
         rotating={status === 'thinking'}
         spin={spin}
@@ -82,7 +82,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ status, content }) => {
       <View style={{ height: 8 }} />
       <StatusRow
         label="绘制中"
-        icon="🛠️"
+        icon={require('../assets/ic_thinking.png')}
         active={status === 'drawing'}
         rotating={status === 'drawing'}
         spin={spin}
@@ -97,7 +97,11 @@ const StatusRow = ({ label, icon, active, rotating, spin, done }: any) => {
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       {rotating ? (
         <Animated.View style={{ transform: [{ rotate: spin }] }}>
-          <Text style={{ fontSize: 16 }}>{icon}</Text>
+            <Image
+                source={icon}
+                style={[{width: 16, height: 16}]}
+                resizeMode="contain"
+            />
         </Animated.View>
       ) : (
         <Text style={{ fontSize: 16 }}>{done ? '✅' : (active ? icon : '⚪')}</Text>
