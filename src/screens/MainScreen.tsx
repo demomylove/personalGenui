@@ -12,6 +12,8 @@ import {
     Dimensions,
     ToastAndroid
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
+
 import {SafeAreaProvider, useSafeAreaInsets} from 'react-native-safe-area-context'; // 需要安装此库
 import {AGUIClient} from '../utils/AGUIClient';
 import {isWeatherIntent, fetchWeatherForPrompt} from '../api/weather';
@@ -24,7 +26,27 @@ import {PermissionStatus} from '../utils/Permissions';
 
 // 统一服务器地址（与 GenUITestScreen 保持一致）
 const SERVER_URL = 'http://10.210.0.58:3001/api/chat';
-
+//
+// const GradientDemo = () => {
+//     return (
+//         <View style={styles.container}>
+//             {/* 正常使用 LinearGradient 组件 */}
+//             <LinearGradient
+//                 // 渐变颜色数组（必填，支持十六进制/RGB/RGBA）
+//                 colors={['#FF6B6B', '#4ECDC4', '#45B7D1']}
+//                 // 渐变起始点（x/y 取值范围 0-1）
+//                 start={{ x: 0, y: 0 }}
+//                 // 渐变结束点（0,1 为垂直渐变，1,0 为水平渐变）
+//                 end={{ x: 0, y: 1 }}
+//                 // 颜色位置占比（可选，对应colors数组）
+//                 locations={[0, 0.5, 1]}
+//                 style={styles.gradientBox}
+//             >
+//                 <Text style={styles.text}>非Expo RN 安卓渐变色演示</Text>
+//             </LinearGradient>
+//         </View>
+//     );
+// };
 interface MainScreenProps {
     initialPermissionStatus?: PermissionStatus | null;
     onPermissionRequest?: () => Promise<PermissionStatus>;
@@ -53,7 +75,7 @@ export default function MainScreen({
             console.warn('[MainScreen] Invalid action object');
             return;
         }
-        
+
         switch (action.action_type) {
             case 'toast':
                 const message = action.payload?.message || '操作成功';
@@ -206,12 +228,21 @@ export default function MainScreen({
                                 {item.role === 'user' && <UserIcon/>}
                             </View>
 
+
                             {/* 如果消息包含DSL，则在消息下方渲染DSL组件 */}
                             {item.dsl && (
-                                <View style={styles.dslContainer}>
+                                <LinearGradient
+                                    colors={['#F0F4FC00', '#7D47C43D']} // 渐变色数组
+                                    start={{x: 0.5, y: -0.3}} // 渐变起始点
+                                    end={{x: 0.5, y: 1.3}}   // 渐变结束点
+                                    locations={[0, 1]} // 颜色位置
+                                    style={[styles.dslContainer, {opacity: 1, padding: 0}]}
+                                >
+                                    {/* DSL 内容层 */}
                                     {/* 使用 agentState.dataContext 作为数据上下文，而非硬编码的 title: demo */}
                                     {renderComponent(item.dsl, agentState.dataContext || agentState || {}, handleInteraction)}
-                                </View>
+
+                                </LinearGradient>
                             )}
 
                         </View>
@@ -237,7 +268,8 @@ export default function MainScreen({
                     }}
                 />
 
-                {/* 输入区 */}
+                {/* 输入区 */
+                }
                 <View style={styles.inputRow}>
                     <VoiceInput
                         style={styles.voiceInput}
@@ -257,7 +289,8 @@ export default function MainScreen({
                 </View>
             </SafeAreaView>
         </SafeAreaProvider>
-    );
+    )
+        ;
 }
 
 const styles = StyleSheet.create({
@@ -265,7 +298,7 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#FFFFFF',
         paddingTop: 12,
-        paddingHorizontal:12,
+        paddingHorizontal: 12,
     },
     headerRow: {
         flexDirection: 'row',
@@ -330,10 +363,14 @@ const styles = StyleSheet.create({
     bubbleTextMe: {
         color: '#333333',
     },
+
     dslContainer: {
+        flexDirection: 'column',
         marginVertical: 2,
         marginLeft: 8, // 与机器人图标对齐
         marginRight: 8,
+        borderRadius: 20,
+        opacity: 1, // 增加透明度
         // backgroundColor: '#fff',
         // shadowColor: '#000',
         // shadowOffset: { width: 0, height: 1 }, // 补充阴影偏移，让阴影更自然（可选）
@@ -347,6 +384,51 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start', // 容器自身宽度自适应（包裹内部 DSL 内容），不撑满父容器
         alignItems: 'flex-start', // 确保容器内子元素（DSL组件）默认靠左对齐
         justifyContent: 'flex-start', // 主轴方向靠左对齐，强化布局一致性
+    },
+
+    // 外层包裹容器：相对定位，用于约束绝对定位的毛玻璃
+    dslWrapper: {
+        position: 'relative', // 必须，作为绝对定位的参考
+        marginVertical: 8,
+        marginLeft: 48,
+        marginRight: 8,
+        // 适配内容宽度：因为 dslContainer 是 flex-start，所以宽度由内容决定
+        alignSelf: 'flex-start',
+    },
+    dslGradientBackground: {
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        borderRadius: 20, // 与内容层圆角一致
+        zIndex: 1,
+    },
+    // 毛玻璃背景层：绝对定位，覆盖整个 wrapper
+    dslBlurBackground: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        borderRadius: 12, // 与内容层圆角一致，避免边缘突兀
+        zIndex: 1, // 背景层 zIndex 低于内容层
+    },
+
+    // 原有 dslContainer 样式：新增 zIndex 确保在毛玻璃上方
+    dslBlurContainer: {
+        marginLeft: 8,
+        opacity: 0.9, // 增加透明度
+        marginRight: 8,
+        alignSelf: 'flex-start',
+        alignItems: 'flex-start',
+        justifyContent: 'flex-start',
+        borderRadius: 12, // 与毛玻璃圆角一致
+        zIndex: 2, // 内容层 zIndex 高于背景层
+        // 可选：添加轻微阴影，增强层次感
+        shadowColor: '#000',
+        shadowOffset: {width: 0, height: 1},
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
     },
     hint: {
         marginTop: 8,
@@ -392,6 +474,23 @@ const styles = StyleSheet.create({
         marginTop: 0,
         lineHeight: 18,
     },
+    blurContainer: {
+        padding: 16,
+        borderRadius: 12,
+        overflow: 'hidden',  // 确保模糊效果在圆角内
+    },
 
+    gradientBox: {
+        width: 300,
+        height: 150,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 12, // 圆角直接设置在 LinearGradient 上
+    },
+    text: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: '600',
+    },
 
 });

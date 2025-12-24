@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import {View, Text, Animated, Easing, StyleSheet, Image} from 'react-native';
+import LinearGradient from "react-native-linear-gradient";
+import {renderComponent} from "../dsl/DslRenderer.tsx";
 
 export type TaskStatus = 'thinking' | 'thinkingComplete' | 'drawing' | 'completed';
 
@@ -70,25 +72,35 @@ const TaskCard: React.FC<TaskCardProps> = ({ status, content }) => {
 
   // 新建卡片：显示思考中/绘制中状态
   return (
-    <View style={styles.card}>
-      <StatusRow
-        label="思考中"
-        icon={require('../assets/ic_thinking.png')}
-        active={status === 'thinking'}
-        rotating={status === 'thinking'}
-        spin={spin}
-        done={status === 'thinkingComplete' || status === 'drawing'}
-      />
-      <View style={{ height: 8 }} />
-      <StatusRow
-        label="绘制中"
-        icon={require('../assets/ic_thinking.png')}
-        active={status === 'drawing'}
-        rotating={status === 'drawing'}
-        spin={spin}
-        done={false}
-      />
-    </View>
+      <LinearGradient
+          colors={['#F0F4FC00', '#7D47C43D']} // 渐变色数组
+          start={{x: 0.5, y: -0.3}} // 渐变起始点
+          end={{x: 0.5, y: 1.3}}   // 渐变结束点
+          locations={[0, 1]} // 颜色位置
+          style={[styles.card, {opacity: 1,padding : 20}]}
+      >
+          {/* DSL 内容层 */}
+         {/*<View style={styles.card}>*/}
+          <StatusRow
+              label="思考中"
+              icon={require('../assets/ic_thinking.png')}
+              active={status === 'thinking'}
+              rotating={status === 'thinking'}
+              spin={spin}
+              done={status === 'thinkingComplete' || status === 'drawing'}
+          />
+          <View style={{ height: 8 }} />
+          <StatusRow
+              label="绘制中"
+              icon={require('../assets/ic_thinking.png')}
+              active={status === 'drawing'}
+              rotating={status === 'drawing'}
+              spin={spin}
+              done={false}
+          />
+      {/*</View>*/}
+      </LinearGradient>
+
   );
 };
 
