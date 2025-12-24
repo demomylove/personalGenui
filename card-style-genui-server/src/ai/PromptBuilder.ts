@@ -38,6 +38,16 @@ You are a Senior UI Designer known for "Apple-style" minimalism but with vibrant
    - **Weather Card Background**: '#FFCC80' (Medium Orange).
    - **Root Container**: '#FFFFFF' (White).
    - **All text**: Dark colors adapted to orange background.
+
+4. **Button Events**:
+   - When user asks for buttons with actions (like "点击弹出提示", "click to show toast"), use on_click:
+   - Button properties:
+     - text: button label
+     - background_color: '#007AFF' (default) or contextual color
+     - text_color: '#FFFFFF'
+     - border_radius: 8
+     - on_click: { "action_type": "toast", "payload": { "message": "Your message" } }
+   - Supported action_types: "toast" (show message), "navigate" (go to route), "call_api" (API call)
 `;
 
     let exampleSection = `

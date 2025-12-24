@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useRef, useState, useCallback} from 'react';
 import {
     SafeAreaView,
     View,
@@ -9,7 +9,8 @@ import {
     Alert,
     FlatList,
     Platform,
-    Dimensions
+    Dimensions,
+    ToastAndroid
 } from 'react-native';
 import {SafeAreaProvider, useSafeAreaInsets} from 'react-native-safe-area-context'; // 需要安装此库
 import {AGUIClient} from '../utils/AGUIClient';
@@ -44,6 +45,39 @@ export default function MainScreen({
     const [loading, setLoading] = useState(false);
     // 新增：维护完整的 Agent 状态，用于渲染时的数据绑定
     const [agentState, setAgentState] = useState<any>({});
+
+    // 处理按钮点击事件（Toast、Navigate 等）
+    const handleInteraction = useCallback((action: any) => {
+        console.log('[MainScreen] handleInteraction:', action);
+        if (!action || !action.action_type) {
+            console.warn('[MainScreen] Invalid action object');
+            return;
+        }
+        
+        switch (action.action_type) {
+            case 'toast':
+                const message = action.payload?.message || '操作成功';
+                if (Platform.OS === 'android') {
+                    ToastAndroid.show(message, ToastAndroid.SHORT);
+                } else {
+                    // iOS 没有原生 Toast，使用 Alert 代替
+                    Alert.alert('提示', message);
+                }
+                break;
+            case 'navigate':
+                // TODO: 实现导航功能
+                console.log('[MainScreen] Navigate to:', action.payload?.route);
+                Alert.alert('导航', `将导航到: ${action.payload?.route}`);
+                break;
+            case 'call_api':
+                // TODO: 实现 API 调用
+                console.log('[MainScreen] Call API:', action.payload?.api_endpoint);
+                Alert.alert('API 调用', `调用: ${action.payload?.api_endpoint}`);
+                break;
+            default:
+                console.warn('[MainScreen] Unknown action type:', action.action_type);
+        }
+    }, []);
 
     // 获取安全区域边距，包含底部导航栏或 Home Indicator
     const insets = useSafeAreaInsets();
@@ -176,8 +210,7 @@ export default function MainScreen({
                             {item.dsl && (
                                 <View style={styles.dslContainer}>
                                     {/* 使用 agentState.dataContext 作为数据上下文，而非硬编码的 title: demo */}
-                                    {renderComponent(item.dsl, agentState.dataContext || agentState || {}, () => {
-                                    })}
+                                    {renderComponent(item.dsl, agentState.dataContext || agentState || {}, handleInteraction)}
                                 </View>
                             )}
 
