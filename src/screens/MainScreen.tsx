@@ -243,7 +243,7 @@ export default function MainScreen({
                         style={styles.voiceInput}
                         value={input}
                         onChangeText={setInput}
-                        placeholder="长按麦克风说话，例如：上海今天的天气怎么样"
+                        placeholder=""
                         onSubmitEditing={(text) => {
                             const content = text || input;
                             if (content.trim()) {

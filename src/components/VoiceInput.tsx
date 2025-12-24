@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
   PanResponder,
+  Animated,
 } from 'react-native';
 import VoiceInputModule, { VoiceInputEvents } from '../native/VoiceInput';
 import PermissionManager, { PermissionStatus } from '../utils/Permissions';
@@ -48,6 +49,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
   const [pressing, setPressing] = useState(false);
   const [accumulatedText, setAccumulatedText] = useState('');
   const listenersRef = useRef<any[]>([]);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // 初始化ASR
   useEffect(() => {
@@ -89,8 +91,8 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
 
     const onAsrResultListener = VoiceInputModule.addEventListener('onAsrResult', (event) => {
       console.log('ASR识别结果:', event.result);
-      // 在长按过程中，只更新临时文本，不累积
-      // 累积逻辑移到onAsrEnd中处理
+      // 只更新临时文本，不累积
+      // 累积逻辑在asrEnd和handlePressOut中处理，避免重复
       setInterimText(event.result);
     });
 
@@ -264,6 +266,8 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
     if (hasPermission) {
       setPressing(true);
       startListening();
+      // 开始脉冲动画
+      startPulseAnimation();
     }
   };
 
@@ -274,17 +278,60 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
       await stopListening();
     }
     
-    // 如果有累积的文本，发送给父组件
-    if (accumulatedText.trim()) {
+    // 停止脉冲动画
+    stopPulseAnimation();
+    
+    // 处理累积的文本和临时文本
+    let finalText = accumulatedText;
+    
+    // 如果有临时文本，将其添加到最终文本中
+    // 这样可以确保即使用户在asrResult阶段松开按钮，也能获取到最新的识别结果
+    if (interimText.trim()) {
+      finalText += interimText;
+    }
+    
+    // 如果有最终文本，发送给父组件
+    if (finalText.trim()) {
       if (onChangeText) {
-        onChangeText(accumulatedText.trim());
+        onChangeText(finalText.trim());
       }
       if (onSubmitEditing) {
-        onSubmitEditing(accumulatedText.trim());
+        onSubmitEditing(finalText.trim());
       }
-      // 清空累积的文本
-      setAccumulatedText('');
     }
+    
+    // 清空累积的文本和临时文本
+    setAccumulatedText('');
+    setInterimText('');
+  };
+
+  // 开始脉冲动画
+  const startPulseAnimation = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.8,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1.2,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  };
+
+  // 停止脉冲动画
+  const stopPulseAnimation = () => {
+    pulseAnim.setValue(1);
+    pulseAnim.stopAnimation();
   };
 
   // 创建PanResponder来处理长按
@@ -327,7 +374,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
     <View style={[styles.container, style]}>
       <View style={styles.statusContainer}>
         <Text style={styles.statusText}>
-          {pressing ? (accumulatedText + interimText || '正在录音...') : (interimText || value || placeholder)}
+          {pressing ? (accumulatedText + interimText) : (interimText || value || placeholder)}
         </Text>
         {permissionLoading && (
           <ActivityIndicator
@@ -352,12 +399,22 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
             disabled={disabled || isInitializing || !isInitialized || permissionLoading}
             {...panResponder.panHandlers}
           >
-            <Text style={[
-              styles.micIcon,
-              isListening && styles.micIconActive
+            <Animated.View style={[
+              styles.micIconContainer,
+              {
+                transform: [{ scale: pulseAnim }]
+              }
             ]}>
-              🎤
-            </Text>
+              <Text style={[
+                styles.micIcon,
+                isListening && styles.micIconActive
+              ]}>
+                🎙️
+              </Text>
+            </Animated.View>
+            {isListening && (
+              <View style={styles.recordingRing} />
+            )}
           </TouchableOpacity>
           <Text style={styles.micHintText}>
             {isListening ? '正在录音...' : '长按说话'}
@@ -425,40 +482,60 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   micButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#007AFF',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#6366F1',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
-    shadowColor: '#000',
+    marginRight: 12,
+    shadowColor: '#6366F1',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    position: 'relative',
+    overflow: 'hidden',
   },
   micButtonActive: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: '#EC4899',
+    shadowColor: '#EC4899',
   },
   micButtonPressing: {
-    transform: [{ scale: 0.95 }],
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.5,
+    elevation: 12,
   },
   micButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#e0e0e0',
     shadowOpacity: 0,
     elevation: 0,
   },
+  micIconContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
   micIcon: {
-    fontSize: 24,
+    fontSize: 28,
     color: '#fff',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   micIconActive: {
-    fontSize: 20,
+    fontSize: 24,
+  },
+  recordingRing: {
+    position: 'absolute',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 3,
+    borderColor: 'rgba(245, 87, 108, 0.5)',
+    zIndex: 1,
   },
   micHintText: {
     fontSize: 16,
