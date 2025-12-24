@@ -15,26 +15,38 @@ export class PromptBuilder {
                  let styleGuide = `
 # Design System & Style Guide (STRICT)
 You are a Senior UI Designer known for "Apple-style" minimalism but with vibrant, context-aware aesthetics.
+
+## CRITICAL CONSTRAINT FOR WEATHER:
+- **ONLY show TODAY's weather**. 
+- **DO NOT generate multi-day forecasts** (no "未来天气预报", no "未来四天", no forecast list).
+- If data contains forecast arrays, IGNORE them. Only use current/today's data.
+
 1. **Layout**:
    - **Weather Cards**: 
      - MUST NOT fill the width. Use specific width (e.g., 340) or large horizontal margins.
      - Structure:
-       - Top Row: City (Left), Date (Right).
-       - Middle Row: Icon (Left), Temperature Column (Right).
-       - Bottom: Condition (Center).
+       - Top Row: City (Left), Date (Right, format: "YYYY-MM-DD 周X" style with orange color).
+       - Middle Row: Weather Icon (Left), Large Temperature (Right, with "体感:XXX" below).
+       - Bottom: Weather Condition (Center), then Humidity & Wind info.
 2. **Typography**:
-   - **City**: font_size 24, font_weight 'bold'.
+   - **City**: font_size 24, font_weight 'bold', color '#333333'.
+   - **Date**: font_size 16, color '#E65100' (Deep Orange).
    - **Temp**: font_size 72+, font_weight 'bold', color '#E65100' (Deep Orange).
-   - **Date/Metadata**: font_size 16, color '#BF360C'.
+   - **Feels Like**: font_size 14, color '#E65100'.
+   - **Condition/Metadata**: font_size 16, color '#5D4037'.
 3. **Colors**:
-   - **Weather Card Background**: Inner Card: '#FFCC80' (Medium Orange). Root Container: '#FFFFFF' (White/Transparent).
-   - **Text**: Adapted to background.
+   - **Weather Card Background**: '#FFCC80' (Medium Orange).
+   - **Root Container**: '#FFFFFF' (White).
+   - **All text**: Dark colors adapted to orange background.
 `;
 
     let exampleSection = `
-# Example: Sunny Weather Card (Compact)
-User: "Beijing Weather"
-Data: { "temp": "26", "city": "Beijing", "date": "2025-12-23 Tue", "cond": "Sunny", "feels_like": "28" }
+# Example: Today's Weather Card (Orange Style)
+User: "上海天气"
+Data: { "temp": "15", "city": "上海市", "date": "2025-12-23", "weekday": "周二", "cond": "阴", "feels_like": "15", "humidity": "60%", "wind": "西风≤3级" }
+
+**IMPORTANT**: Generate ONLY today's weather. NO forecast section. NO "未来天气" section.
+
 Output:
 {
   "component_type": "Center",
@@ -43,49 +55,40 @@ Output:
     {
       "component_type": "Card",
       "properties": {
-        "background_color": "#FFB74D", 
+        "background_color": "#FFCC80", 
         "padding": 24, 
         "shape_border_radius": 24, 
         "elevation": 8,
-        "width": 360
+        "width": 340
       },
       "children": [
         {
           "component_type": "Column",
-          "properties": { "cross_axis_alignment": "start" },
+          "properties": { "cross_axis_alignment": "center" },
           "children": [
             {
               "component_type": "Row",
-              "properties": { "main_axis_alignment": "space_between", "width": "100%" },
+              "properties": { "main_axis_alignment": "center", "spacing": 8 },
               "children": [
-                { "component_type": "Text", "properties": { "text": "Beijing", "font_size": 24, "font_weight": "bold", "color": "#333333" } },
-                { "component_type": "Text", "properties": { "text": "2025-12-23 Tue", "font_size": 14, "color": "#666666" } }
+                { "component_type": "Text", "properties": { "text": "上海市", "font_size": 24, "font_weight": "bold", "color": "#333333" } },
+                { "component_type": "Text", "properties": { "text": "2025-12-23 周二", "font_size": 16, "color": "#E65100" } }
               ]
             },
-            { "component_type": "SizedBox", "properties": { "height": 16 } },
+            { "component_type": "SizedBox", "properties": { "height": 24 } },
             {
               "component_type": "Row",
-              "properties": { "main_axis_alignment": "space_around", "width": "100%" },
+              "properties": { "main_axis_alignment": "center", "cross_axis_alignment": "center", "spacing": 16 },
               "children": [
-                { "component_type": "Text", "properties": { "text": "☀️", "font_size": 64, "color": "#FFC107" } },
-                {
-                   "component_type": "Column",
-                   "properties": { "cross_axis_alignment": "end" },
-                   "children": [
-                     { "component_type": "Text", "properties": { "text": "26°C", "font_size": 64, "font_weight": "bold", "color": "#FF9800" } },
-                     { "component_type": "Text", "properties": { "text": "Feels 28°C", "font_size": 16, "color": "#5D4037" } }
-                   ]
-                }
+                { "component_type": "Text", "properties": { "text": "☁️", "font_size": 64 } },
+                { "component_type": "Text", "properties": { "text": "15°C", "font_size": 72, "font_weight": "bold", "color": "#E65100" } }
               ]
             },
+            { "component_type": "SizedBox", "properties": { "height": 8 } },
+            { "component_type": "Text", "properties": { "text": "体感: 15°C", "font_size": 14, "color": "#E65100" } },
             { "component_type": "SizedBox", "properties": { "height": 16 } },
-            { 
-               "component_type": "Center", 
-               "properties": {},
-               "children": [
-                 { "component_type": "Text", "properties": { "text": "Sunny", "font_size": 18, "font_weight": "bold", "color": "#4E342E" } }
-               ]
-            }
+            { "component_type": "Text", "properties": { "text": "阴", "font_size": 20, "font_weight": "bold", "color": "#4E342E" } },
+            { "component_type": "SizedBox", "properties": { "height": 12 } },
+            { "component_type": "Text", "properties": { "text": "湿度: 60% 风向: 西风≤3级", "font_size": 14, "color": "#5D4037" } }
           ]
         }
       ]
@@ -103,6 +106,10 @@ The following components are strictly available for use. Do NOT use any componen
 
 ${DSL_SCHEMA_DESCRIPTION}
 
+${styleGuide}
+
+${exampleSection}
+
 # Constraints & Rules
 1. Output MUST be valid JSON.
 2. The root object must be a single Component (e.g., Column, Card).
@@ -110,6 +117,7 @@ ${DSL_SCHEMA_DESCRIPTION}
 4. Use the provided Data Context to populate the UI.
 5. If the data is an array, you likely need a Column or Row to map over it, but the output must still be a static DSL structure (or specific list components if available).
 6. **Context Awareness**: You are provided with the **Current UI DSL**. If the User Query implies a modification (e.g., "change color to red", "add a button"), you MUST return the COMPLETE updated DSL based on the Current DSL. Do NOT return a diff. Return the full new state.
+7. **CRITICAL FOR WEATHER**: NEVER generate forecast sections. Only today's weather.
 
 # Context
 ## User Query
