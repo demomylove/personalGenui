@@ -108,9 +108,16 @@ export const chatHandler = async (req: Request, res: Response) => {
             const startWeather = Date.now();
             console.log(`[Perf] [2.2 Weather Start] Fetching real weather data...`);
             
-            // TODO: Extract city from user message (e.g. via simple regex or LLM)
-            // For now, default to Shanghai or check intent
-            const city = '上海'; 
+            // Simple city extraction (MVP)
+            const cities = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '西安', '南京', '重庆'];
+            let city = '上海'; // default
+            for (const c of cities) {
+                if (lastUserMessage.includes(c)) {
+                    city = c;
+                    break;
+                }
+            }
+            console.log(`[Weather] Identified city: ${city}`);
             
             const weatherData = await AmapService.getWeather(city);
             console.log(`[Perf] [2.2 Weather End] Duration: ${Date.now() - startWeather}ms`);
@@ -200,13 +207,24 @@ export const chatHandler = async (req: Request, res: Response) => {
          // Create JSON Patch
          // Compare new dslObject with serverState.dsl
          const hadOld = Object.prototype.hasOwnProperty.call(serverState, 'dsl') && serverState.dsl != null;
+         
+         console.log(`[Patch Debug] hadOld: ${hadOld}`);
+         if (hadOld) {
+             console.log(`[Patch Debug] Old DSL keys: ${Object.keys(serverState.dsl || {})}`);
+         }
+         console.log(`[Patch Debug] New DSL keys: ${Object.keys(dslObject)}`);
+
          const patch = hadOld 
             ? compare({ dsl: serverState.dsl }, { dsl: dslObject })
             : [{ op: 'add', path: '/dsl', value: dslObject } as any];
          
-         // In strict JSON Patch, we don't just replace root usually? 
-         // But here we diff the wrapper object `{ dsl: ... }` to get path `/dsl/...`
-         
+         console.log(`[Patch Debug] Generated Patch Length: ${patch.length}`);
+         if (patch.length > 0) {
+             console.log(`[Patch Debug] First op: ${JSON.stringify(patch[0])}`);
+         } else {
+             console.warn(`[Patch Debug] WARNING: Patch is empty!`);
+         }
+
          // Update Server State
          serverState.dsl = dslObject;
          stateStore.set(sessionId, serverState);
@@ -214,6 +232,12 @@ export const chatHandler = async (req: Request, res: Response) => {
          // Send Delta
          if (patch.length > 0) {
              sendEvent('STATE_DELTA', { delta: patch });
+             console.log(`[Patch Debug] STATE_DELTA sent.`);
+         } else {
+             // If patch is empty, maybe force a full update just in case?
+             // Or send a message saying "Already up to date"
+             console.log(`[Patch Debug] No changes detected.`);
+             sendEvent('TEXT_MESSAGE_CONTENT', { delta: "\n(内容已是最新，无需更新)" });
          }
     } else {
         // If no JSON, maybe it was just a text reply (if we allowed it).

@@ -126,8 +126,23 @@ ${exampleSection}
 3. Do NOT include markdown code blocks (like triple backticks json). Just return the raw JSON string.
 4. Use the provided Data Context to populate the UI.
 5. If the data is an array, you likely need a Column or Row to map over it, but the output must still be a static DSL structure (or specific list components if available).
-6. **Context Awareness**: You are provided with the **Current UI DSL**. If the User Query implies a modification (e.g., "change color to red", "add a button"), you MUST return the COMPLETE updated DSL based on the Current DSL. Do NOT return a diff. Return the full new state.
-7. **CRITICAL FOR WEATHER**: NEVER generate forecast sections. Only today's weather.
+6. **Context Awareness for MODIFICATIONS**:
+   - If User Query implies a style modification (e.g., "change color to green", "change background"), modify the INNER Card's background_color, NOT the outer Container/Center.
+   - The ROOT container (Center/Column) should ALWAYS keep background_color as '#FFFFFF' or transparent.
+   - Return the COMPLETE updated DSL. Do NOT return a diff.
+7. **NEW CONTENT Detection**:
+   - If User Query asks for NEW content types (e.g., "讲个笑话", "tell a joke", "讲个故事", "show me a recipe"), generate a COMPLETELY NEW Card.
+   - Do NOT modify the current weather/button card to add joke content. Create a fresh Card for jokes/stories.
+   - IGNORE the Current UI DSL for new content requests.
+8. **CRITICAL FOR WEATHER**: NEVER generate forecast sections. Only today's weather.
+9. **BUTTON GENERATION RULE**: 
+   - ONLY generate Button components when user EXPLICITLY asks for buttons (e.g., "添加一个按钮", "生成一个点击弹出toast的按钮").
+   - Do NOT automatically add buttons like "点击查看更多", "查看详情" unless user specifically requests them.
+   - Keep cards simple and content-focused by default.
+10. **TEXT MODIFICATION PRIORITY**:
+    - If User Query explicitly asks to rename or change text (e.g., "把标题改成北京市天气", "change title to Custom Text"), you MUST use the string provided by the user EXACTLY.
+    - **OVERRIDE RULE**: User's text override > Data Context value. 
+    - Example: User "title to Beijing Weather", Data "Beijing" -> Result "Beijing Weather". DO NOT use "Beijing".
 
 # Context
 ## User Query
