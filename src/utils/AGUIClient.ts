@@ -118,6 +118,11 @@ export class AGUIClient {
         this.listeners.onDone?.();
         this.close();
         break;
+      case 'RUN_FINISHED':
+        // Map AG-UI Protocol RUN_FINISHED to Done
+        this.listeners.onDone?.();
+        this.close(); // Stop EventSource from auto-reconnecting
+        break;
       case 'ERROR':
         this.listeners.onError?.((event as any).message || 'Unknown Error');
         this.close();

@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+// import fetch from 'node-fetch'; // Use Node 18 native fetch
 
 export interface PoiItem {
   name: string;
@@ -90,6 +90,7 @@ export class AmapService {
    * Get Live Weather for a city (default Shanghai)
    */
   static async getWeather(city: string = 'Shanghai'): Promise<any> {
+      console.log(`[AmapService] getWeather called for: ${city}`);
       if (!this.API_KEY) {
           console.log('[AmapService] No API Key, returning Mock Weather.');
           return this.getMockWeather();
@@ -97,18 +98,42 @@ export class AmapService {
 
       try {
           // 1. Get Adcode
-          const adcode = await this.getAdcode(city) || '310000'; // Default to Shanghai if fail
+          const adcode = await this.getAdcode(city);
+          if (!adcode) {
+             console.log('[AmapService] Adcode not found, returning mock.');
+             return this.getMockWeather();
+          }
 
           // 2. Fetch Live Weather and Forecast in parallel
           const liveUrl = `${this.WEATHER_API_URL}?city=${adcode}&key=${this.API_KEY}&extensions=base`;
           const forecastUrl = `${this.WEATHER_API_URL}?city=${adcode}&key=${this.API_KEY}&extensions=all`;
           
-          console.log(`[AmapService] Fetching Weather (Live & Forecast)...`);
+          console.log(`[AmapService] Fetching Weather URLs: ${liveUrl} ...`);
           
+          const fetchWithTimeout = async (url: string, timeoutMs: number) => {
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+              try {
+                  const res = await fetch(url, { signal: controller.signal });
+                  clearTimeout(timeoutId);
+                  return res;
+              } catch (err) {
+                  clearTimeout(timeoutId);
+                  throw err;
+              }
+          };
+
           const [liveRes, forecastRes] = await Promise.all([
-              fetch(liveUrl),
-              fetch(forecastUrl)
+              fetchWithTimeout(liveUrl, 5000),
+              fetchWithTimeout(forecastUrl, 5000)
           ]);
+              
+          console.log(`[AmapService] Weather API responses received. Status: ${liveRes.status}, ${forecastRes.status}`);
+
+          if (!liveRes.ok || !forecastRes.ok) {
+              console.warn(`[AmapService] One of the weather requests failed.`);
+              return this.getMockWeather();
+          }
 
           const liveData: any = await liveRes.json();
           const forecastData: any = await forecastRes.json();
@@ -117,19 +142,19 @@ export class AmapService {
 
           // Process Live Data
           if (liveData.status === '1' && liveData.lives && liveData.lives.length > 0) {
-              const live = liveData.lives[0];
-              result.city = live.city;
-              result.temp = live.temperature; // Current Temp
-              result.cond = live.weather;
-              result.humidity = live.humidity;
-              result.wind = `${live.winddirection}风${live.windpower}级`;
-              result.weather.current = { 
-                  tempC: live.temperature, 
-                  text: live.weather, 
-                  humidity: live.humidity, 
-                  windDir: live.winddirection, 
-                  windPower: live.windpower 
-              };
+                  const live = liveData.lives[0];
+                  result.city = live.city;
+                  result.temp = live.temperature; // Current Temp
+                  result.cond = live.weather;
+                  result.humidity = live.humidity;
+                  result.wind = `${live.winddirection}风${live.windpower}级`;
+                  result.weather.current = { 
+                      tempC: live.temperature, 
+                      text: live.weather, 
+                      humidity: live.humidity, 
+                      windDir: live.winddirection, 
+                      windPower: live.windpower 
+                  };
           }
 
           // Process Forecast Data
@@ -158,11 +183,11 @@ export class AmapService {
           }
           
           return result;
+
       } catch (e) {
-          console.error('[AmapService] getWeather failed:', e);
+          console.error('[AmapService] getWeather failed or timed out:', e);
+          return this.getMockWeather();
       }
-      
-      return this.getMockWeather();
   }
 
   private static getMockWeather(): any {
