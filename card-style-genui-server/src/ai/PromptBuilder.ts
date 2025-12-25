@@ -141,6 +141,77 @@ Output:
   ]
 }
 `;
+    
+    let poiExample = `
+# Example: POI List (Nearby Places - Large & Green Style)
+User: "Nearby Coffee"
+Data: { "pois": [ { "name": "Starbucks Reserve", "address": "123 Main St (Near Park)", "rating": "4.8", "cost": "¥45", "opentimeToday": "07:00-22:00", "image": "http://img.com/1" }, { "name": "Luckin Coffee", "address": "456 Side St", "rating": "4.5", "cost": "¥18", "opentimeToday": "08:00-20:00", "image": "http://img.com/2" } ] }
+Output:
+{
+  "component_type": "Center",
+  "properties": { "background_color": "#FFFFFF" },
+  "children": [
+    {
+      "component_type": "Column",
+      "properties": { "spacing": 16, "padding": 20 },
+      "children": [
+         { "component_type": "Text", "properties": { "text": "附近的精选好店", "font_size": 28, "font_weight": "bold", "color": "#2E7D32" } },
+         {
+           "component_type": "Card",
+           "properties": { "background_color": "#E8F5E9", "elevation": 4, "border_radius": 24, "padding": 20, "width": 380, "on_click": { "action_type": "toast", "payload": { "message": "Selected Starbucks" } } },
+           "children": [
+             {
+               "component_type": "Row",
+               "properties": { "spacing": 20, "cross_axis_alignment": "center", "width": "100%" },
+               "children": [
+                 { "component_type": "Image", "properties": { "source": "http://img.com/1", "width": 120, "height": 120, "border_radius": 16, "content_fit": "cover" } },
+                 {
+                   "component_type": "Column",
+                   "properties": { "flex": 1, "spacing": 8 },
+                   "children": [
+                     { "component_type": "Text", "properties": { "text": "Starbucks Reserve", "font_size": 22, "font_weight": "bold", "color": "#1B5E20" } },
+                     { 
+                       "component_type": "Row",
+                       "properties": { "spacing": 12, "cross_axis_alignment": "center" },
+                       "children": [
+                          { "component_type": "Text", "properties": { "text": "⭐ 4.8", "font_size": 18, "color": "#F57F17", "font_weight": "bold" } },
+                          { "component_type": "Text", "properties": { "text": "¥45/人", "font_size": 18, "color": "#388E3C" } }
+                       ]
+                     },
+                     { "component_type": "Text", "properties": { "text": "营业时间: 07:00-22:00", "font_size": 16, "color": "#558B2F" } },
+                     { "component_type": "Text", "properties": { "text": "123 Main St (Near Park)", "font_size": 16, "color": "#757575", "max_lines": 1 } }
+                   ]
+                 }
+               ]
+             }
+           ]
+         },
+         {
+           "component_type": "Card",
+           "properties": { "background_color": "#E8F5E9", "elevation": 4, "border_radius": 24, "padding": 20, "width": 380 },
+           "children": [
+             {
+               "component_type": "Row",
+               "properties": { "spacing": 20, "cross_axis_alignment": "center", "width": "100%" },
+               "children": [
+                 { "component_type": "Image", "properties": { "source": "http://img.com/2", "width": 120, "height": 120, "border_radius": 16, "content_fit": "cover" } },
+                 { 
+                    "component_type": "Column", 
+                    "properties": { "flex": 1, "spacing": 8 },
+                    "children": [ 
+                       { "component_type": "Text", "properties": { "text": "Luckin Coffee", "font_size": 22, "font_weight": "bold", "color": "#1B5E20" } },
+                       { "component_type": "Text", "properties": { "text": "⭐ 4.5  ¥18/人", "font_size": 18, "color": "#388E3C" } }
+                    ] 
+                 }
+               ]
+             }
+           ]
+         }
+      ]
+    }
+  ]
+}
+`;
 
     return `
 # Role
@@ -156,6 +227,8 @@ ${styleGuide}
 ${exampleSection}
 
 ${imageExample}
+
+${poiExample}
 
 # Constraints & Rules
 1. Output MUST be valid JSON.

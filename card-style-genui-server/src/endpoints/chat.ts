@@ -111,8 +111,8 @@ export const chatHandler = async (req: Request, res: Response) => {
             if (pois.length > 0) {
                  if (!serverState.dataContext) serverState.dataContext = {};
                  serverState.dataContext.pois = pois;
-                 additionalInstruction = "\nIMPORTANT: POI data is provided. Render 'PoiList' immediately.";
-                 forceImmediatePoiRender = true;
+                 additionalInstruction = "\nIMPORTANT: POI data detected. Render a vertical list of cards (using Column) according to the 'POI List' example.";
+                 // forceImmediatePoiRender = true; // Use LLM for rendering
             }
         } catch (err) {
             console.error("POI Search failed", err);
@@ -169,18 +169,12 @@ export const chatHandler = async (req: Request, res: Response) => {
         console.log(`[Chat] [DSL Parse Failed] String was: ${dslString}`);
     }
 
-    // Fallback logic for POI
+    // Fallback logic for POI - REMOVED, relying on LLM to follow PromptBuilder example
+    /*
     if (forceImmediatePoiRender && (!dslObject || !dslObject.card)) {
-         dslObject = {
-             card: {
-                 type: "column",
-                 children: [
-                     { type: "text", text: "Found nearby places:" },
-                     { type: "poi_list", pois: "${pois}" }
-                 ]
-             }
-         };
+         // ...
     }
+    */
 
     if (dslObject) {
          const hadOld = Object.prototype.hasOwnProperty.call(serverState, 'dsl') && serverState.dsl != null;

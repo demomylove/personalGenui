@@ -48,7 +48,7 @@ export class AmapService {
       }
 
       // Map API response to our simplifed POI model
-      return data.pois.slice(0, 5).map((poi: any) => ({
+      return data.pois.slice(0, 3).map((poi: any) => ({
         name: poi.name,
         type: (poi.type || '').split(';')[0], // Take first category
         rating: poi.biz_ext?.rating || '4.5',
