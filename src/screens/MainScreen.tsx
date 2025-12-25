@@ -10,7 +10,7 @@ import {
     FlatList,
     Platform,
     Dimensions,
-    ToastAndroid
+    ToastAndroid, ImageBackground
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
@@ -105,6 +105,10 @@ export default function MainScreen({
     const insets = useSafeAreaInsets();
 
     const send = async (prompt: string) => {
+        // 发起一次“生成式UI”请求的入口：
+        // 1) 将用户输入写入消息列表
+        // 2) 根据意图（如天气）预取真实业务数据并合并到 dataContext
+        // 3) 通过 AGUIClient 将 prompt 与 dataContext 发送到服务端，等待流式状态与 DSL 返回
         setLoading(true);
         setStatus('thinking');
         setStatusText('');
@@ -113,7 +117,7 @@ export default function MainScreen({
             let dataContext: any = {title: 'demo'};
             if (isWeatherIntent(prompt)) {
                 console.log('[MainScreen] 请求真实天气数据 Fetching weather data...')
-                // 先真实请求天气数据，放入 dataContext 提供给后端生成更贴合的数据 UI
+                // 若识别为天气意图，先拉取真实天气数据；放入 dataContext 供服务端生成更贴合的数据驱动 UI
                 const weather = await fetchWeatherForPrompt(prompt);
                 if (weather) {
                     console.log('[MainScreen] Weather data:',);
@@ -122,7 +126,7 @@ export default function MainScreen({
                 }
             }
 
-            // 更新本地状态，以便立即可以使用（AGUIClient 也会合并）
+            // 更新本地 Agent 状态，保证界面具备最新的数据上下文（服务端也会合并）
             const newAgentState = {...agentState, ...{dataContext}};
             setAgentState(newAgentState);
             await client.sendMessage(prompt, {dataContext});
@@ -135,27 +139,34 @@ export default function MainScreen({
     useEffect(() => {
         client.setListeners({
             onMessageDelta: (delta) => {
+                // 文本思考增量（LLM 的 streaming 输出），用于展示助手思考过程提示
                 setStatusText((prev) => prev + delta);
             },
             onStateUpdate: (newState) => {
-                // 同步最新的 Agent 状态（包含 dataContext）
+                // 服务端通过流式“状态补丁”推送最新 Agent 状态（含 dataContext、dsl 等）
+                // 每次收到都更新本地状态，驱动 UI 重渲染
                 console.log('[MainScreen] State Update:', JSON.stringify(newState.dataContext || {}));
                 setAgentState(newState);
                 if (newState.dsl) {
+                    // 当状态中出现 dsl（界面结构描述），进入绘制阶段
                     setCurrentDsl(newState.dsl);
                     setStatus('drawing');
                 }
             },
             onToolStart: () => {
+                // 服务端工具调用开始（例如触发某个业务能力），可在此做提示/埋点
             },
             onToolEnd: () => {
+                // 工具调用结束，亦可做结果提示或刷新
             },
             onError: (err) => {
+                // 会话错误：结束思考态并提示用户
                 setStatus('thinkingComplete');
                 Alert.alert('错误', err);
                 setLoading(false);
             },
             onDone: () => {
+                // 流式会话完成：进入 completed 态
                 setStatus('completed');
             },
         });
@@ -165,7 +176,9 @@ export default function MainScreen({
     }, []);
 
     useEffect(() => {
-        // 当状态变为completed时，将DSL内容添加到消息列表
+        // 当状态变为 completed：
+        // - 若存在 currentDsl，则把 DSL 作为“助手消息”插入消息列表
+        // - 消息渲染时会使用 agentState.dataContext 进行数据绑定
         if (status === 'completed' && currentDsl) {
             setMessages((prev) => [
                 ...prev,
@@ -199,104 +212,112 @@ export default function MainScreen({
     }, [loading]);
 
     return (
-        <SafeAreaProvider>
-            <SafeAreaView style={[styles.container, {paddingBottom: insets.bottom}]}>
-                <View style={styles.headerRow}>
-                    <Text style={styles.title}>Card Style GenUI</Text>
-                </View>
+        <ImageBackground
+            source={require('../assets/ag_ui_bg.png')}
+            style={styles.backgroundImage}
+            resizeMode="cover"
+        >
+            <SafeAreaProvider>
+                <SafeAreaView style={[styles.container, {paddingBottom: insets.bottom}]}>
+                    <View style={styles.headerRow}>
+                        <Text style={styles.title}>Card Style GenUI</Text>
+                    </View>
 
-                {/* 对话框区域 */}
-                <FlatList
-                    ref={flatListRef}
-                    style={styles.chat}
-                    data={messages}
-                    keyExtractor={(_, idx) => String(idx)}
-                    renderItem={({item, index}) => (
-                        <View style={[{height: "auto", width: "auto", backgroundColor: "transparent", margin: 10}]}>
-                            {/* 显示消息气泡和图标 */}
-                            <View
-                                style={item.role === 'user' ? styles.userMessageContainer : styles.aiMessageContainer}>
-                                {item.role === 'assistant' && <RobotIcon size={32}/>}
-                                {/* 只有当消息内容不为空或者是用户消息时，才显示消息气泡 */}
-                                {(item.content.trim() || item.role === 'user') && (
-                                    <View
-                                        style={[styles.bubble, item.role === 'user' ? styles.bubbleMe : styles.bubbleAI]}>
-                                        <Text
-                                            style={[styles.bubbleText, item.role === 'user' && styles.bubbleTextMe]}>{item.content}</Text>
-                                    </View>
+                    {/* 对话区域：按时间顺序展示用户与助手的消息。
+                        若某条消息含 dsl，则在气泡下方渲染生成式 UI 组件树。 */}
+                    <FlatList
+                        ref={flatListRef}
+                        style={styles.chat}
+                        data={messages}
+                        keyExtractor={(_, idx) => String(idx)}
+                        renderItem={({item, index}) => (
+                            <View style={[{height: "auto", width: "auto", backgroundColor: "transparent", margin: 10}]}>
+                                {/* 消息气泡与头像：用户在右，助手在左 */}
+                                <View
+                                    style={item.role === 'user' ? styles.userMessageContainer : styles.aiMessageContainer}>
+                                    {item.role === 'assistant' && <RobotIcon size={32}/>}
+                                    {/* 当 content 非空或角色为 user 时显示文本气泡；助手若仅提供 DSL，可不显示文本 */}
+                                    {(item.content.trim() || item.role === 'user') && (
+                                        <View
+                                            style={[styles.bubble, item.role === 'user' ? styles.bubbleMe : styles.bubbleAI]}>
+                                            <Text
+                                                style={[styles.bubbleText, item.role === 'user' && styles.bubbleTextMe]}>{item.content}</Text>
+                                        </View>
+                                    )}
+                                    {item.role === 'user' && <UserIcon/>}
+                                </View>
+
+
+                                {/* 若该消息包含 DSL：使用 renderComponent 结合 agentState.dataContext 渲染实际组件，
+                                    实现“数据绑定 + 界面结构”驱动的生成式 UI。 */}
+                                {item.dsl && (
+                                    <LinearGradient
+                                        colors={['#F0F4FC00', '#7D47C43D']} // 渐变色数组
+                                        start={{x: 0.5, y: -0.3}} // 渐变起始点
+                                        end={{x: 0.5, y: 1.3}}   // 渐变结束点
+                                        locations={[0, 1]} // 颜色位置
+                                        style={[styles.dslContainer, {opacity: 1, padding: 0}]}
+                                    >
+                                        {/* DSL 内容层：数据上下文来源为 agentState.dataContext；不再使用硬编码示例 */}
+                                        {renderComponent(item.dsl, agentState.dataContext || agentState || {}, handleInteraction)}
+
+                                    </LinearGradient>
                                 )}
-                                {item.role === 'user' && <UserIcon/>}
+
                             </View>
+                        )}
 
 
-                            {/* 如果消息包含DSL，则在消息下方渲染DSL组件 */}
-                            {item.dsl && (
-                                <LinearGradient
-                                    colors={['#F0F4FC00', '#7D47C43D']} // 渐变色数组
-                                    start={{x: 0.5, y: -0.3}} // 渐变起始点
-                                    end={{x: 0.5, y: 1.3}}   // 渐变结束点
-                                    locations={[0, 1]} // 颜色位置
-                                    style={[styles.dslContainer, {opacity: 1, padding: 0}]}
-                                >
-                                    {/* DSL 内容层 */}
-                                    {/* 使用 agentState.dataContext 作为数据上下文，而非硬编码的 title: demo */}
-                                    {renderComponent(item.dsl, agentState.dataContext || agentState || {}, handleInteraction)}
-
-                                </LinearGradient>
-                            )}
-
-                        </View>
-                    )}
-                    // 替换 #selectedCode 部分的代码
-                    ListFooterComponent={
-                        loading ? (
-                            <View style={styles.loadingContainer}>
-                                <View style={styles.statusContainer}>
-                                    <RobotIcon size={24}/>
-                                    <View style={styles.statusTextContainer}>
-                                        <TaskCard status={status}/>
-                                        {!!statusText && <Text style={styles.statusText}>{statusText}</Text>}
+                        // 替换 #selectedCode 部分的代码
+                        ListFooterComponent={
+                            loading ? (
+                                <View style={styles.loadingContainer}>
+                                    <View style={styles.statusContainer}>
+                                        <RobotIcon size={24}/>
+                                        <View style={styles.statusTextContainer}>
+                                            <TaskCard status={status}/>
+                                            {!!statusText && <Text style={styles.statusText}>{statusText}</Text>}
+                                        </View>
                                     </View>
                                 </View>
-                            </View>
-                        ) : null
-                    }
+                            ) : null
+                        }
 
-                    onContentSizeChange={() => {
-                        // 当内容大小改变时，滚动到底部
-                        flatListRef.current?.scrollToEnd({animated: true});
-                    }}
-                />
-
-                {/* 输入区 */
-                }
-                <View style={styles.inputRow}>
-                    <VoiceInput
-                        style={styles.voiceInput}
-                        value={input}
-                        onChangeText={setInput}
-                        placeholder=""
-                        onSubmitEditing={(text) => {
-                            const content = text || input;
-                            if (content.trim()) {
-                                send(content.trim());
-                                setInput('');
-                            }
+                        onContentSizeChange={() => {
+                            // 当内容大小改变时，滚动到底部
+                            flatListRef.current?.scrollToEnd({animated: true});
                         }}
-                        initialPermissionStatus={initialPermissionStatus}
-                        onPermissionRequest={onPermissionRequest}
                     />
-                </View>
-            </SafeAreaView>
-        </SafeAreaProvider>
-    )
-        ;
+
+                    {/* 输入区：语音输入组件封装了权限申请、识别结果回填与提交。
+                        onSubmitEditing 触发 send(prompt) 发起一次生成式 UI 会话。 */}
+                    <View style={styles.inputRow}>
+                        <VoiceInput
+                            style={styles.voiceInput}
+                            value={input}
+                            onChangeText={setInput}
+                            placeholder=""
+                            onSubmitEditing={(text) => {
+                                const content = text || input;
+                                if (content.trim()) {
+                                    send(content.trim());
+                                    setInput('');
+                                }
+                            }}
+                            initialPermissionStatus={initialPermissionStatus}
+                            onPermissionRequest={onPermissionRequest}
+                        />
+                    </View>
+                </SafeAreaView>
+            </SafeAreaProvider>
+        </ImageBackground>
+
+    );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
         paddingTop: 12,
         paddingHorizontal: 12,
     },
@@ -316,7 +337,6 @@ const styles = StyleSheet.create({
     },
     chat: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
     },
     userMessageContainer: {
         flexDirection: 'column-reverse',
@@ -440,13 +460,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 8,
         paddingVertical: 8,
+        // backgroundColor: "red",
         borderTopWidth: 1,
         borderTopColor: '#E9E9EB',
         paddingTop: 16,
     },
     voiceInput: {
         flex: 1,
-        backgroundColor: '#F0F0F0',
+        // backgroundColor: "red",
+
+        // backgroundColor: '#F0F0F0',
         borderRadius: 20,
     },
     loadingContainer: {
@@ -492,5 +515,9 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '600',
     },
-
+    backgroundImage: {
+        flex: 1, // 占据整个屏幕
+        width: '100%',
+        height: '100%',
+    },
 });
