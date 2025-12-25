@@ -20,6 +20,7 @@ type AGUIEvent =
   | { type: 'REQUEST_HUMAN_INPUT'; prompt: string; options?: string[] }
   | { type: 'THREAD_START' | 'THREAD_END' }
   | { type: 'DONE' }
+  | { type: 'RUN_FINISHED' }
   | { type: 'ERROR'; message: string };
 
 type Listener = {
@@ -48,7 +49,8 @@ export class AGUIClient {
     this.currentState = { ...this.currentState, ...initialState };
 
     const stateToSend = { ...this.currentState };
-    delete stateToSend.dsl; // server owns DSL
+    // delete stateToSend.dsl; // server needs DSL context for stateful modifications
+
 
     // Close any previous stream before starting a new one to avoid duplicate listeners
     this.es?.close();

@@ -110,6 +110,7 @@ export class LLMService {
     }
   
     private static async callRealLLM(prompt: string): Promise<string> {
+      console.log(`[LLMService] Calling Qwen API... (Prompt Len: ${prompt.length})`);
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
@@ -139,6 +140,7 @@ export class LLMService {
   
         const data: any = await response.json();
         const content = data.choices[0].message.content;
+        console.log(`[LLMService] API Response Received (Content Len: ${content.length})`);
         return content;
       } catch (error) {
         console.error('LLM Request Failed:', error);

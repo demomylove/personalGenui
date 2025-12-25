@@ -35,6 +35,20 @@ export const chatHandler = async (req: Request, res: Response) => {
       serverState.dataContext = { ...(serverState.dataContext || {}), ...clientContext };
   }
   
+  // Hydrate DSL from client if server lost it (e.g. restart)
+  if (!serverState.dsl && reqBody.state?.dsl) {
+      serverState.dsl = reqBody.state.dsl;
+      console.log(`[Chat] Hydrated DSL from Client Request (Keys: ${Object.keys(serverState.dsl).join(', ')})`);
+  }
+
+  
+  console.log(`[Chat] Incoming Request:
+  - SessionID: ${sessionId}
+  - RunID: ${runId}
+  - Input: "${inputMsg}"
+  - Context Keys: ${Object.keys(clientContext).join(', ')}
+  `);
+  
   // Set headers for SSE
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache');
@@ -127,6 +141,8 @@ export const chatHandler = async (req: Request, res: Response) => {
     let prompt = PromptBuilder.constructPrompt(inputMsg, dataContext, currentDsl);
     if (additionalInstruction) prompt += additionalInstruction;
 
+    console.log(`[Chat] [Prompt Constructed]:\n${prompt}\n-----------------------------------`);
+
     // Keep-alive loop
     const keepAliveInterval = setInterval(() => { res.write(': keep-alive\n\n'); }, 3000);
     
@@ -137,6 +153,8 @@ export const chatHandler = async (req: Request, res: Response) => {
         clearInterval(keepAliveInterval);
     }
 
+    console.log(`[Chat] [LLM Raw Response]:\n${fullResponse}\n-----------------------------------`);
+
     // 5. Parse DSL & Compute Patch
     let dslString = fullResponse;
     const match = fullResponse.match(/```json([\s\S]*?)```/);
@@ -145,8 +163,10 @@ export const chatHandler = async (req: Request, res: Response) => {
     let dslObject: any;
     try {
         dslObject = JSON.parse(dslString);
+        console.log(`[Chat] [DSL Parsed]: Success (Keys: ${Object.keys(dslObject).join(', ')})`);
     } catch (e) {
         console.error("LLM JSON Parse Error", e);
+        console.log(`[Chat] [DSL Parse Failed] String was: ${dslString}`);
     }
 
     // Fallback logic for POI
@@ -173,6 +193,7 @@ export const chatHandler = async (req: Request, res: Response) => {
          
          if (patch.length > 0) {
              // Send State Delta Event
+             console.log(`[Chat] [Patch Generated]: ${JSON.stringify(patch)}`);
              writeEvent({
                  type: EventType.STATE_DELTA,
                  threadId: sessionId,

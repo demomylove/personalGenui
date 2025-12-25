@@ -167,10 +167,20 @@ ${imageExample}
    - If User Query implies a style modification (e.g., "change color to green", "change background"), modify the INNER Card's background_color, NOT the outer Container/Center.
    - The ROOT container (Center/Column) should ALWAYS keep background_color as '#FFFFFF' or transparent.
    - Return the COMPLETE updated DSL. Do NOT return a diff.
-7. **NEW CONTENT Detection**:
-   - If User Query asks for NEW content types (e.g., "讲个笑话", "tell a joke", "讲个故事", "show me a recipe"), generate a COMPLETELY NEW Card.
-   - Do NOT modify the current weather/button card to add joke content. Create a fresh Card for jokes/stories.
-   - IGNORE the Current UI DSL for new content requests.
+7. **INTENT & CONTEXT AWARENESS (CRITICAL)**:
+   - **STEP 1: Evaluate Intent**: Determine if the User Query is a **MODIFICATION** of the current topic OR a **TOPIC SWITCH**.
+   - **CASE A: MODIFICATION (Same Topic/Visual Tweak)**:
+     - **Triggers**: "Change color", "Make text larger", "Add a button", "Show detail", "Next song" (if music), "Tomorrow's weather" (if weather).
+     - **Action**: **UPDATE** the Current UI DSL. Keep the existing structure/container. Minimize disruption.
+   - **CASE B: TOPIC SWITCH (New Content Domain)**:
+     - **Triggers**: Current is **Weather** -> User asks for **"Cat"** / **"Music"** / **"Joke"**.
+     - **Action**: **IGNORE** the old DSL. Generate a **COMPLETELY NEW** Card structure for the new topic.
+   - **CASE C: EXPLICIT RESET**:
+     - **Triggers**: "reset", "cancel", "new", "restart", "start over".
+     - **Action**: Generate NEW.
+   - **Examples**:
+     - Context: Weather Card. User: "Make it blue". -> **Modify** (Keep weather, change bg).
+     - Context: Weather Card. User: "Draw a cat". -> **New** (Discard weather, show cat).
 8. **CRITICAL FOR WEATHER**: NEVER generate forecast sections. Only today's weather.
 9. **BUTTON GENERATION RULE**: 
    - ONLY generate Button components when user EXPLICITLY asks for buttons (e.g., "添加一个按钮", "生成一个点击弹出toast的按钮").
