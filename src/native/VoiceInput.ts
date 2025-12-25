@@ -10,8 +10,15 @@ export interface VoiceInputEvents {
   onAsrError: { code: number; message: string };
 }
 
-// 创建事件发射器
-const voiceInputEmitter = new NativeEventEmitter(VoiceInput);
+// 避免 Native Module 未链接导致红屏或白屏 Crash
+if (!VoiceInput) {
+  console.error('[VoiceInput] Native Module Not Found! Check linking or rebuild.');
+}
+
+// 创建事件发射器 (Safe Mock)
+const voiceInputEmitter = VoiceInput 
+  ? new NativeEventEmitter(VoiceInput)
+  : { addListener: () => { return { remove: () => {} } }, removeAllListeners: () => {} } as any;
 
 // 定义VoiceInput API
 export class VoiceInputModule {
@@ -26,6 +33,7 @@ export class VoiceInputModule {
     duplexSwitch: boolean = true,
     hotwordJsonStr: string = '{"hot":[]}'
   ): Promise<string> {
+    if (!VoiceInput) { console.warn('VoiceInput native module missing'); return ''; }
     return VoiceInput.initAsr(asrType, duplexSwitch, hotwordJsonStr);
   }
 
@@ -34,6 +42,7 @@ export class VoiceInputModule {
    * @returns Promise<string> 识别结果
    */
   static async startAsr(): Promise<string> {
+    if (!VoiceInput) return '';
     return VoiceInput.startAsr();
   }
 
@@ -41,6 +50,7 @@ export class VoiceInputModule {
    * 停止ASR识别
    */
   static async stopAsr(): Promise<string> {
+    if (!VoiceInput) return '';
     return VoiceInput.stopAsr();
   }
 
@@ -48,6 +58,7 @@ export class VoiceInputModule {
    * 释放ASR资源
    */
   static async releaseAsr(): Promise<string> {
+    if (!VoiceInput) return '';
     return VoiceInput.releaseAsr();
   }
 

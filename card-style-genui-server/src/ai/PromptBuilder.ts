@@ -107,6 +107,41 @@ Output:
 }
 `;
 
+    let imageExample = `
+# Example: Image Generation
+User: "画一只可爱的小狗" or "Generate a puppy"
+Output:
+{
+  "component_type": "Center",
+  "properties": { "background_color": "#FFFFFF" },
+  "children": [
+    {
+      "component_type": "Card",
+      "properties": { "padding": 16, "shape_border_radius": 16, "elevation": 4 },
+      "children": [
+        {
+          "component_type": "Column",
+          "properties": { "cross_axis_alignment": "center", "spacing": 12 },
+          "children": [
+            { "component_type": "Text", "properties": { "text": "Here is a puppy for you:", "font_size": 18, "font_weight": "bold" } },
+            { 
+              "component_type": "Image", 
+              "properties": { 
+                "source": "https://loremflickr.com/800/600/puppy",
+                "width": 300,
+                "height": 225,
+                "content_fit": "cover",
+                "border_radius": 12
+              } 
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+`;
+
     return `
 # Role
 You are an expert UI Generator for a React Native application. Your job is to compile User Queries and Data into a specific JSON DSL based on the provided Component Library.
@@ -119,6 +154,8 @@ ${DSL_SCHEMA_DESCRIPTION}
 ${styleGuide}
 
 ${exampleSection}
+
+${imageExample}
 
 # Constraints & Rules
 1. Output MUST be valid JSON.
@@ -139,7 +176,16 @@ ${exampleSection}
    - ONLY generate Button components when user EXPLICITLY asks for buttons (e.g., "添加一个按钮", "生成一个点击弹出toast的按钮").
    - Do NOT automatically add buttons like "点击查看更多", "查看详情" unless user specifically requests them.
    - Keep cards simple and content-focused by default.
-10. **TEXT MODIFICATION PRIORITY**:
+   
+10. **IMAGE GENERATION**:
+    - If user asks to "generate an image", "draw a picture", "show me a photo" OR "generate a card of [object]" (e.g., "cat", "city", "flower", "Ferrari"):
+    - You MUST include a visual \`Image\` component in the Card.
+    - Create a Card with an Image component.
+    - PROTOCOL: Use \`https://loremflickr.com/800/600/<keyword_in_english>\`
+    - Example: User "Draw a cat" -> Image URL "https://loremflickr.com/800/600/cat"
+    - Translate the keyword to English if the user input is in another language (e.g., "小狗" -> "puppy" or "dog").
+
+11. **TEXT MODIFICATION PRIORITY**:
     - If User Query explicitly asks to rename or change text (e.g., "把标题改成北京市天气", "change title to Custom Text"), you MUST use the string provided by the user EXACTLY.
     - **OVERRIDE RULE**: User's text override > Data Context value. 
     - Example: User "title to Beijing Weather", Data "Beijing" -> Result "Beijing Weather". DO NOT use "Beijing".

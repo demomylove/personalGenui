@@ -55,7 +55,7 @@ export class AmapService {
         cost: poi.biz_ext?.cost ? `¥${poi.biz_ext.cost}` : '¥--',
         opentimeToday: '09:00-22:00', // API might not have structured open time in basic response
         address: poi.address,
-        image: (poi.photos && poi.photos.length > 0) ? poi.photos[0].url : '',
+        image: this.optimizeImageUrl((poi.photos && poi.photos.length > 0) ? poi.photos[0].url : ''),
         distance: poi.distance
       }));
 
@@ -198,7 +198,7 @@ export class AmapService {
           cost: "¥45",
           opentimeToday: "07:00-22:00",
           address: "No. 123 Mock Nanjing Road, Shanghai",
-          image: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=1000&auto=format&fit=crop"
+          image: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=400&auto=format&fit=crop"
         },
         {
           name: "Luckin Coffee (Mock)",
@@ -207,7 +207,7 @@ export class AmapService {
           cost: "¥18",
           opentimeToday: "08:00-20:00",
           address: "B1, Mock Plaza, Shanghai",
-          image: "https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=1000&auto=format&fit=crop"
+          image: "https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=400&auto=format&fit=crop"
         },
         {
           name: "Manner Coffee (Mock)",
@@ -216,7 +216,7 @@ export class AmapService {
           cost: "¥20",
           opentimeToday: "07:30-19:00",
           address: "Corner output, Shanghai",
-          image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=1000&auto=format&fit=crop"
+          image: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=400&auto=format&fit=crop"
         }
       ];
     }
@@ -233,5 +233,34 @@ export class AmapService {
         image: "https://via.placeholder.com/150"
       }
     ];
+
+  }
+
+  private static getRandomFallbackImage(): string {
+    const images = [
+       "https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=400&auto=format&fit=crop",
+       "https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=400&auto=format&fit=crop",
+       "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=400&auto=format&fit=crop"
+    ];
+    return images[Math.floor(Math.random() * images.length)];
+  }
+
+  /**
+   * Optimizes image URL for performance (target width: 400px)
+   */
+  private static optimizeImageUrl(url: string): string {
+    if (!url) return this.getRandomFallbackImage();
+
+    // 1. Unsplash Optimization
+    if (url.includes('images.unsplash.com')) {
+      if (url.includes('w=')) {
+        return url.replace(/w=\d+/, 'w=400');
+      }
+      return `${url}&w=400`;
+    }
+
+    // 2. Generic Proxy Optimization (via wsrv.nl) for Real POI images
+    // This ensures even Amap raw photos are resized
+    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=400&output=webp`;
   }
 }
