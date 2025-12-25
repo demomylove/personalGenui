@@ -78,8 +78,9 @@ export class WidgetMapper {
         dataContext: Record<string, any> = {},
         onInteraction?: (action: any) => void
     ): React.ReactNode {
+      
         // 统一转为小写，兼容 DSL 配置大小写不一致问题（安卓端容错优化）
-        const componentType = type.toLowerCase();
+        const componentType = type && type.toLowerCase();
 
         switch (componentType) {
             // ------------- 布局组件（基于 View 原生组件，安卓端弹性布局核心）-------------
