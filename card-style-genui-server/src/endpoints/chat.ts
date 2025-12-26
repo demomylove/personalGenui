@@ -223,19 +223,18 @@ export const chatHandler = async (req: Request, res: Response) => {
         }
     }
 
-    // 4. Prompt & LLM
+    // 4. Intent Recognition & LLM
     const currentDsl = serverState.dsl || null;
-    let prompt = PromptBuilder.constructPrompt(inputMsg, contextData, currentDsl);
-    if (additionalInstruction) prompt += additionalInstruction;
-
-    console.log(`[Chat] [Prompt Constructed]:\n${prompt}\n-----------------------------------`);
+    
+    console.log(`[Chat] Starting intent recognition for: "${inputMsg}"`);
 
     // Keep-alive loop
     const keepAliveInterval = setInterval(() => { res.write(': keep-alive\n\n'); }, 3000);
     
     let fullResponse;
     try {
-        fullResponse = await LLMService.generateUI(prompt);
+        // Use the new intent-aware generation
+        fullResponse = await LLMService.generateUIWithIntent(inputMsg, contextData, currentDsl);
     } finally {
         clearInterval(keepAliveInterval);
     }
@@ -347,8 +346,8 @@ export const chatOnceHandler = async (req: Request, res: Response) => {
     }
 
     const currentDsl = serverState.dsl || null;
-    const prompt = PromptBuilder.constructPrompt(lastUserMessage, serverState.dataContext || {}, currentDsl);
-    const dslString = await LLMService.generateUI(prompt);
+    // Use intent-aware generation for the once handler as well
+    const dslString = await LLMService.generateUIWithIntent(lastUserMessage, serverState.dataContext || {}, currentDsl);
 
     let dslObject: any;
     try {
