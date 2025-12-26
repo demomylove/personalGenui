@@ -213,7 +213,7 @@ export default function MainScreen({
 
     return (
         <ImageBackground
-            // source={require('../assets/ag_ui_bg.png')}
+            source={require('../assets/ag_ui_bg.png')}
             style={styles.backgroundImage}
             resizeMode="cover"
         >

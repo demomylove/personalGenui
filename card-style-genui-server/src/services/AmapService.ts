@@ -21,6 +21,64 @@ export class AmapService {
   private static TEXT_SEARCH_URL = 'https://restapi.amap.com/v3/place/text';
   private static WEATHER_API_URL = 'https://restapi.amap.com/v3/weather/weatherInfo';
   private static GEOCODING_API_URL = 'https://restapi.amap.com/v3/geocode/geo';
+  private static DRIVING_API_URL = 'https://restapi.amap.com/v3/direction/driving';
+
+  /**
+   * Get Coordinates (lon,lat) for an address
+   */
+    static async getCoordinates(address: string): Promise<string | null> {
+        if (!this.API_KEY) return null;
+        try {
+            const url = `${this.GEOCODING_API_URL}?address=${encodeURIComponent(address)}&key=${this.API_KEY}`;
+            console.log(`[AmapService] Geo Fetching: ${url}`);
+            const response = await fetch(url);
+            const data: any = await response.json();
+            
+            if (data.status === '1' && data.geocodes && data.geocodes.length > 0) {
+                return data.geocodes[0].location; // Returns "lon,lat"
+            }
+        } catch (e) {
+            console.error('[AmapService] getCoordinates failed:', e);
+        }
+        return null;
+    }
+
+  /**
+   * Get Driving Route from Origin to Destination (Driving V3)
+   */
+  static async getDrivingRoute(origin: string, destination: string): Promise<any> {
+    if (!this.API_KEY) return this.getMockRoute(origin, destination);
+
+    try {
+        const url = `${this.DRIVING_API_URL}?origin=${origin}&destination=${destination}&key=${this.API_KEY}&extensions=base&strategy=0`; // strategy=0 (speed first)
+        console.log(`[AmapService] Driving Route Fetching: ${url}`);
+        
+        const response = await fetch(url);
+        const data: any = await response.json();
+
+        if (data.status === '1' && data.route && data.route.paths && data.route.paths.length > 0) {
+            const path = data.route.paths[0];
+            return {
+                distance: `${(parseInt(path.distance) / 1000).toFixed(1)}公里`,
+                duration: `${Math.ceil(parseInt(path.duration) / 60)}分钟`,
+                steps: path.steps.map((step: any) => step.instruction).slice(0, 5), // Top 5 steps
+                taxi_cost: data.route.taxi_cost || 'Unknown'
+            };
+        }
+    } catch (e) {
+        console.error('[AmapService] getDrivingRoute failed:', e);
+    }
+    return this.getMockRoute(origin, destination);
+  }
+
+  private static getMockRoute(origin: string, destination: string): any {
+      return {
+          distance: "1200公里 (Mock)",
+          duration: "720分钟",
+          steps: ["从起点出发", "沿G2高速行驶", "到达终点"],
+          taxi_cost: "Unknown"
+      };
+  }
 
   static async searchPoi(keyword: string, city: string = 'Shanghai'): Promise<PoiItem[]> {
     if (!this.API_KEY) {

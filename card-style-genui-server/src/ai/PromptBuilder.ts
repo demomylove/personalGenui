@@ -128,8 +128,8 @@ Output:
               "component_type": "Image", 
               "properties": { 
                 "source": "https://loremflickr.com/800/600/puppy",
-                "width": 300,
-                "height": 225,
+                "width": 200,
+                "height": 150,
                 "content_fit": "cover",
                 "border_radius": 12
               } 
@@ -213,6 +213,68 @@ Output:
 }
 `;
 
+
+    let routeExample = `
+# Example: Driving Route Card
+User: "Drive from Shanghai to Beijing"
+Data: { "route": { "origin": "Shanghai", "destination": "Beijing", "distance": "1214.3km", "duration": "14 hours", "steps": ["Start from People's Square", "Enter G2 Highway", "Keep left"], "taxi_cost": "Unknown" } }
+Output:
+{
+  "component_type": "Center",
+  "properties": { "background_color": "#FFFFFF" },
+  "children": [
+    {
+      "component_type": "Card",
+      "properties": { "background_color": "#E3F2FD", "padding": 20, "shape_border_radius": 20, "elevation": 4, "width": 380 },
+      "children": [
+        {
+          "component_type": "Column",
+          "properties": { "spacing": 16 },
+          "children": [
+             { 
+               "component_type": "Text", 
+               "properties": { "text": "🚗 Driving Route", "font_size": 20, "font_weight": "bold", "color": "#1565C0" } 
+             },
+             {
+               "component_type": "Row",
+               "properties": { "main_axis_alignment": "space_between", "width": "100%" },
+               "children": [
+                  { "component_type": "Text", "properties": { "text": "Shanghai", "font_size": 18, "font_weight": "bold", "color": "#333" } },
+                  { "component_type": "Text", "properties": { "text": "➝", "font_size": 18, "color": "#999" } },
+                  { "component_type": "Text", "properties": { "text": "Beijing", "font_size": 18, "font_weight": "bold", "color": "#333" } }
+               ]
+             },
+             {
+               "component_type": "Row",
+               "properties": { "spacing": 20 },
+               "children": [
+                  {
+                    "component_type": "Column",
+                    "properties": { "spacing": 4 },
+                    "children": [
+                       { "component_type": "Text", "properties": { "text": "DISTANCE", "font_size": 12, "color": "#1976D2" } },
+                       { "component_type": "Text", "properties": { "text": "1214 km", "font_size": 24, "font_weight": "bold", "color": "#0D47A1" } }
+                    ]
+                  },
+                  {
+                    "component_type": "Column",
+                    "properties": { "spacing": 4 },
+                    "children": [
+                       { "component_type": "Text", "properties": { "text": "DURATION", "font_size": 12, "color": "#1976D2" } },
+                       { "component_type": "Text", "properties": { "text": "14 h", "font_size": 24, "font_weight": "bold", "color": "#0D47A1" } }
+                    ]
+                  }
+               ]
+             },
+             { "component_type": "Text", "properties": { "text": "• Start from People's Square\\n• Enter G2 Highway\\n• Keep left", "font_size": 14, "color": "#546E7A", "max_lines": 10 } }
+          ]
+        }
+      ]
+    }
+  ]
+}
+`;
+
     return `
 # Role
 You are an expert UI Generator for a React Native application. Your job is to compile User Queries and Data into a specific JSON DSL based on the provided Component Library.
@@ -229,6 +291,8 @@ ${exampleSection}
 ${imageExample}
 
 ${poiExample}
+
+${routeExample}
 
 # Constraints & Rules
 1. Output MUST be valid JSON.

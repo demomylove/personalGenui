@@ -140,6 +140,45 @@ export const chatHandler = async (req: Request, res: Response) => {
         }
     }
 
+    // Route Planning Logic
+     // Regex to extract "From [A] To [B]" pattern, supporting Chinese "从...到..." or "去了..."
+    const routeRegex = /(?:从|from)\s*([^到\s]+)\s*(?:到|to|去)\s*([^的\s]+)/i; 
+    const matchRoute = inputMsg.match(routeRegex);
+
+    if (matchRoute || lowerMsg.includes('路线') || lowerMsg.includes('行程') || lowerMsg.includes('route')) {
+         let origin = '上海'; // Default
+         let dest = '北京';   // Default
+
+         if (matchRoute) {
+             origin = matchRoute[1];
+             dest = matchRoute[2];
+         }
+
+         sendText(`\n(Planning route from ${origin} to ${dest}...)`);
+         try {
+             // 1. Geocode Origin & Dest
+             const originCoords = await AmapService.getCoordinates(origin);
+             const destCoords = await AmapService.getCoordinates(dest);
+
+             if (originCoords && destCoords) {
+                 // 2. Get Driving Route
+                 const routeData = await AmapService.getDrivingRoute(originCoords, destCoords);
+                 if (!serverState.dataContext) serverState.dataContext = {};
+                 
+                 serverState.dataContext.route = {
+                     origin: origin,
+                     destination: dest,
+                     ...routeData
+                 };
+                 additionalInstruction += "\nIMPORTANT: Route data available. Render a Route Card showing Origin, Destination, Distance, Duration, and a simplified Step list.";
+             } else {
+                 sendText("\n(Could not find coordinates for locations)");
+             }
+         } catch(e) {
+             console.error("Route Planning failed", e);
+         }
+    }
+
     // 4. Prompt & LLM
     const dataContext = serverState.dataContext || {}; 
     const currentDsl = serverState.dsl || null;
