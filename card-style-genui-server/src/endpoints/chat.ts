@@ -105,7 +105,12 @@ export const chatHandler = async (req: Request, res: Response) => {
         sendText("\n(Searching nearby POIs...)");
         try {
             let keyword = '咖啡';
-            if (lowerMsg.includes('咖啡')) keyword = '咖啡'; // Extract keyword logic
+            // Simple keyword extraction: remove "nearby" and other common words
+            const cleanMsg = inputMsg.replace(/附近|的|查找|搜索|查看|有没有|推荐|我想去|帮我找/g, '').trim();
+            if (cleanMsg.length > 0) {
+                keyword = cleanMsg; 
+            }
+            console.log(`[Chat] POI Search Keyword extracted: "${keyword}" (Original: "${inputMsg}")`);
             
             const pois = await AmapService.searchPoi(keyword);
             if (pois.length > 0) {
