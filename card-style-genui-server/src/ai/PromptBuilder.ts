@@ -275,6 +275,48 @@ Output:
 }
 `;
 
+
+    let textOverrideExample = `
+# Example: Text Override (Renaming)
+User: "把标题改成北京天气预报" (Change title to Beijing Weather Forecast)
+Data: { "city": "北京市", "temp": "20" }
+Current DSL: { ... "text": "北京市" ... }
+Output:
+{
+  "component_type": "Center",
+  "properties": { "background_color": "#FFFFFF" },
+  "children": [
+    {
+      "component_type": "Card",
+      "properties": { "background_color": "#FFCC80", "width": 340, "padding": 24, "border_radius": 24 },
+      "children": [
+        {
+          "component_type": "Column",
+          "children": [
+             {
+               "component_type": "Row",
+               "children": [
+                  { 
+                    "component_type": "Text", 
+                    "properties": { 
+                      "text": "北京天气预报", // CRITICAL: Must match User's requested text exactly. Ignore "北京市" from Data.
+                      "font_size": 24, 
+                      "font_weight": "bold", 
+                      "color": "#333333" 
+                    } 
+                  },
+                  { "component_type": "Text", "properties": { "text": "2025-12-26 周五", "font_size": 16, "color": "#E65100" } }
+               ]
+             }
+             // ... rest of weather card
+          ]
+        }
+      ]
+    }
+  ]
+}
+`;
+
     return `
 # Role
 You are an expert UI Generator for a React Native application. Your job is to compile User Queries and Data into a specific JSON DSL based on the provided Component Library.
@@ -288,11 +330,14 @@ ${styleGuide}
 
 ${exampleSection}
 
+${textOverrideExample}
+
 ${imageExample}
 
 ${poiExample}
 
 ${routeExample}
+
 
 # Constraints & Rules
 1. Output MUST be valid JSON.
@@ -300,7 +345,13 @@ ${routeExample}
 3. Do NOT include markdown code blocks (like triple backticks json). Just return the raw JSON string.
 4. Use the provided Data Context to populate the UI.
 5. If the data is an array, you likely need a Column or Row to map over it, but the output must still be a static DSL structure (or specific list components if available).
-6. **Context Awareness for MODIFICATIONS**:
+6. **CRITICAL: TEXT OVERRIDE RULE**:
+   - **User's explicit text request ALWAYS overrides Data Context.**
+   - If User says "Change title to 'ABC'", and Data says "City: XYZ", you MUST display "ABC".
+   - **Scenario**: User: "把标题改成上海天气预报", Data: { "city": "上海市" }. -> Result: Title Text MUST be "上海天气预报".
+   - **NEVER** ignore a user's renaming request in favor of "correct" data.
+
+7. **Context Awareness for MODIFICATIONS**:
    - If User Query implies a style modification (e.g., "change color to green", "change background"), modify the INNER Card's background_color, NOT the outer Container/Center.
    - The ROOT container (Center/Column) should ALWAYS keep background_color as '#FFFFFF' or transparent.
    - Return the COMPLETE updated DSL. Do NOT return a diff.
@@ -327,10 +378,18 @@ ${routeExample}
 10. **IMAGE GENERATION**:
     - If user asks to "generate an image", "draw a picture", "show me a photo" OR "generate a card of [object]" (e.g., "cat", "city", "flower", "Ferrari"):
     - You MUST include a visual \`Image\` component in the Card.
-    - Create a Card with an Image component.
-    - PROTOCOL: Use \`https://loremflickr.com/800/600/<keyword_in_english>\`
+    - **PRIORITY**: Check Data Context first. If data contains an image URL (e.g. data.weather.icon, data.pois[0].image), USE IT.
+    - **FALLBACK**: IF AND ONLY IF no image is provided in data, use the PROTOCOL: https://loremflickr.com/800/600/<keyword_in_english>
     - Example: User "Draw a cat" -> Image URL "https://loremflickr.com/800/600/cat"
-    - Translate the keyword to English if the user input is in another language (e.g., "小狗" -> "puppy" or "dog").
+
+12. **POI DATA BINDING (CRITICAL)**:
+    - If dataContext.pois is present, you MUST generate a list of Cards corresponding EXACTLY to the items in the data array.
+    - **Do NOT** make up new names or images.
+    - **Do NOT** limit to 2 items if the data has 5. Show all items provided in data.
+    - **Mapping**:
+      - Title -> poi.name
+      - Image -> poi.image (Use the EXACT URL from data, do not replace with loremflickr)
+      - Detail -> poi.address, poi.rating, poi.cost.
 
 11. **TEXT MODIFICATION PRIORITY**:
     - If User Query explicitly asks to rename or change text (e.g., "把标题改成北京市天气", "change title to Custom Text"), you MUST use the string provided by the user EXACTLY.

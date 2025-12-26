@@ -80,33 +80,54 @@ export class AmapService {
       };
   }
 
-  static async searchPoi(keyword: string, city: string = 'Shanghai'): Promise<PoiItem[]> {
-    if (!this.API_KEY) {
-      console.log('[AmapService] No API Key provided, returning Mock Data.');
-      return this.getMockPois(keyword);
-    }
-
+  static async searchPoi(keyword: string, city: string = '上海', location?: string): Promise<PoiItem[]> {
     try {
-      const url = `${this.TEXT_SEARCH_URL}?keywords=${encodeURIComponent(keyword)}&city=${encodeURIComponent(city)}&key=${this.API_KEY}&extensions=all`;
-      console.log(`[AmapService] Fetching: ${url}`);
+      if (!this.API_KEY) {
+        console.warn('[AmapService] API Key is missing. Returning Mock Data.');
+        return this.getMockPois(keyword);
+      }
+
+      // Explicitly prioritize "nearby" search if location is provided
+      // API: v3/place/around (Search Around) vs v3/place/text (Keyword Search)
+      const baseUrl = location 
+        ? 'https://restapi.amap.com/v3/place/around' 
+        : 'https://restapi.amap.com/v3/place/text';
+
+      let url = `${baseUrl}?key=${this.API_KEY}&keywords=${encodeURIComponent(keyword)}&extensions=all&output=JSON`;
       
+      if (location) {
+        url += `&location=${location}&radius=3000&sortrule=distance`;
+        console.log(`[AmapService] Searching POI Around: ${keyword} @ ${location}`);
+      } else {
+        url += `&city=${encodeURIComponent(city)}`;
+        console.log(`[AmapService] Searching POI Text: ${keyword} in ${city}`);
+      }
+
       const response = await fetch(url);
       if (!response.ok) {
          throw new Error(`Amap API error: ${response.statusText}`);
       }
 
       const data: any = await response.json();
+      console.log(`[AmapService] Search Response for ${keyword}:`, JSON.stringify(data).substring(0, 500) + '...'); // Log start of response
+      
       if (data.status !== '1') {
-         console.warn('[AmapService] API returned status 0:', data.info);
-         return this.getMockPois(keyword); // Fallback to mock on API logic error
+        console.error('[AmapService] Search Error:', data.info);
+        return this.getMockPois(keyword);
       }
 
       if (!data.pois || data.pois.length === 0) {
+        console.warn(`[AmapService] No POIs found for keyword: ${keyword} in city: ${city}`);
+        // If API returns empty, maybe fallback to mock or return empty? 
+        // User requested "return 5 real data", implies if real fails, maybe we should indicate that?
+        // But for now let's return [] so we know it's real 0 results. 
+        // OR fallback to mock if 0 results? The user might prefer seeing *something*.
+        // Let's stick to empty [] for "Real" request correctness, but log it clearly.
         return [];
       }
 
       // Map API response to our simplifed POI model
-      return data.pois.slice(0, 3).map((poi: any) => ({
+      return data.pois.slice(0, 5).map((poi: any) => ({
         name: poi.name,
         type: (poi.type || '').split(';')[0], // Take first category
         rating: poi.biz_ext?.rating || '4.5',
@@ -147,18 +168,55 @@ export class AmapService {
   /**
    * Get Live Weather for a city (default Shanghai)
    */
-  static async getWeather(city: string = 'Shanghai'): Promise<any> {
-      console.log(`[AmapService] getWeather called for: ${city}`);
+  /**
+   * Get Adcode from Coordinates (lon,lat) using Reverse Geocoding
+   */
+  static async getAdcodeFromLocation(location: string): Promise<string | null> {
+      if (!this.API_KEY) return null;
+      try {
+          const url = `https://restapi.amap.com/v3/geocode/regeo?location=${location}&key=${this.API_KEY}&extensions=base`;
+          console.log(`[AmapService] ReGeo Fetching: ${url}`);
+          const response = await fetch(url);
+          const data: any = await response.json();
+          
+          if (data.status === '1' && data.regeocode && data.regeocode.addressComponent) {
+              const adcode = data.regeocode.addressComponent.adcode;
+              console.log(`[AmapService] ReGeo Success: ${location} -> ${adcode} (${data.regeocode.formatted_address})`);
+              return adcode;
+          }
+      } catch (e) {
+          console.error('[AmapService] getAdcodeFromLocation failed:', e);
+      }
+      return null;
+  }
+
+  /**
+   * Get Live Weather for a city (default Shanghai) OR specific location (lon,lat)
+   */
+  static async getWeather(city: string = 'Shanghai', location?: string): Promise<any> {
+      console.log(`[AmapService] getWeather called for: city=${city}, location=${location}`);
       if (!this.API_KEY) {
           console.log('[AmapService] No API Key, returning Mock Weather.');
           return this.getMockWeather();
       }
 
       try {
-          // 1. Get Adcode
-          const adcode = await this.getAdcode(city);
+          let adcode: string | null = null;
+
+          // 1. Determine Adcode
+          if (location) {
+              adcode = await this.getAdcodeFromLocation(location);
+              if (!adcode) {
+                  console.warn(`[AmapService] Failed to get adcode from location ${location}, falling back to city ${city}`);
+              }
+          }
+          
           if (!adcode) {
-             console.log('[AmapService] Adcode not found, returning mock.');
+              adcode = await this.getAdcode(city);
+          }
+
+          if (!adcode) {
+             console.log('[AmapService] Adcode not found via Location or City, returning mock.');
              return this.getMockWeather();
           }
 
@@ -201,7 +259,7 @@ export class AmapService {
           // Process Live Data
           if (liveData.status === '1' && liveData.lives && liveData.lives.length > 0) {
                   const live = liveData.lives[0];
-                  result.city = live.city;
+                  result.city = live.city; // Use API returned city name
                   result.temp = live.temperature; // Current Temp
                   result.cond = live.weather;
                   result.humidity = live.humidity;

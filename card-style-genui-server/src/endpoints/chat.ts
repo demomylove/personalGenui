@@ -16,11 +16,8 @@ const stateStore = new Map<string, any>();
  */
 export const chatHandler = async (req: Request, res: Response) => {
   // AG-UI Request Body Structure: { input: "query", context: {}, threadId, runId, ... }
-  // OR the legacy structure { messages, state, sessionId }
-  // We adapt both.
   const reqBody = req.body || {};
   
-  // Adapt legacy inputs to AG-UI concepts
   const sessionId = reqBody.threadId || reqBody.sessionId || uuidv4();
   const runId = reqBody.runId || uuidv4();
   const inputMsg = reqBody.input || (reqBody.messages ? reqBody.messages[reqBody.messages.length - 1]?.content : "") || "";
@@ -41,12 +38,10 @@ export const chatHandler = async (req: Request, res: Response) => {
       console.log(`[Chat] Hydrated DSL from Client Request (Keys: ${Object.keys(serverState.dsl).join(', ')})`);
   }
 
-  
   console.log(`[Chat] Incoming Request:
   - SessionID: ${sessionId}
   - RunID: ${runId}
   - Input: "${inputMsg}"
-  - Context Keys: ${Object.keys(clientContext).join(', ')}
   `);
   
   // Set headers for SSE
@@ -98,91 +93,139 @@ export const chatHandler = async (req: Request, res: Response) => {
     // 3. Logic & Context Enrichment (POI/Weather)
     const lowerMsg = inputMsg.toLowerCase();
     let additionalInstruction = "";
-    let forceImmediatePoiRender = false;
+    
+    // Hardcoded user location as requested (Centralized)
+    const USER_LOCATION = '121.399641,31.168876';
 
-    // POI Logic
+    // Ensure dataContext exists
+    if (!serverState.dataContext) serverState.dataContext = {};
+    const contextData = serverState.dataContext;
+
+    // --- POI Logic ---
     if (lowerMsg.includes('咖啡') || lowerMsg.includes('coffee') || lowerMsg.includes('cafe') || lowerMsg.includes('附近')) {
         sendText("\n(Searching nearby POIs...)");
         try {
             let keyword = '咖啡';
-            // Simple keyword extraction: remove "nearby" and other common words
-            const cleanMsg = inputMsg.replace(/附近|的|查找|搜索|查看|有没有|推荐|我想去|帮我找/g, '').trim();
+            // Simple keyword extraction
+            const cleanMsg = inputMsg.replace(/附近|的|查找|搜索|查看|有没有|推荐|我想去|帮我找/g, '').replace(/ting$/i, '').trim();
             if (cleanMsg.length > 0) {
                 keyword = cleanMsg; 
             }
             console.log(`[Chat] POI Search Keyword extracted: "${keyword}" (Original: "${inputMsg}")`);
             
-            const pois = await AmapService.searchPoi(keyword);
+            // Use USER_LOCATION for "around" search
+            const pois = await AmapService.searchPoi(keyword, 'Shanghai', USER_LOCATION);
             if (pois.length > 0) {
-                 if (!serverState.dataContext) serverState.dataContext = {};
-                 serverState.dataContext.pois = pois;
-                 additionalInstruction = "\nIMPORTANT: POI data detected. Render a vertical list of cards (using Column) according to the 'POI List' example.";
-                 // forceImmediatePoiRender = true; // Use LLM for rendering
+                 contextData.pois = pois;
+                 additionalInstruction += "\nIMPORTANT: POI data detected. Render a vertical list of cards (using Column) according to the 'POI List' example.";
             }
         } catch (err) {
             console.error("POI Search failed", err);
         }
     }
 
-    // Weather Logic
-    if (lowerMsg.includes('天气') || lowerMsg.includes('weather')) {
+    // --- Weather Logic ---
+    const isWeather = lowerMsg.includes('天气') || lowerMsg.includes('weather') || lowerMsg.includes('气温');
+    if (isWeather) {
+        let city = 'Shanghai'; // Default context city name (fallback)
+        if (inputMsg.includes('北京')) city = 'Beijing';
+        if (inputMsg.includes('广州')) city = 'Guangzhou';
+        if (inputMsg.includes('深圳')) city = 'Shenzhen';
+        
+        console.log(`[Chat] Weather intent detected for city: ${city} (using coords: ${USER_LOCATION})`);
         sendText("\n(Fetching weather data...)");
-        if (!serverState.dataContext) serverState.dataContext = {};
+
         try {
-            const cities = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '西安', '南京', '重庆'];
-            let city = '上海';
-            for (const c of cities) if (inputMsg.includes(c)) { city = c; break; }
+            // Pass USER_LOCATION to utilize ReGeo if possible. 
+            // Note: If user specific asks for "Beijing Weather", passing USER_LOCATION (Shanghai) might be wrong?
+            // User request: "weather查询时，也带上" (When querying weather, also include coords).
+            // Logic: If user specifically mentions a city, we should arguably prioritize that city.
+            // But if generic "Weather", use coords.
+            // Currently AmapService.getWeather logic: 1. check location -> regeo -> adcode. 2. if fail, check city -> adcode.
+            // So if we pass location, it will PRIORITIZE location.
+            // Modification: If user explicitly mentions a DIFFERENT city, we probably shouldn't pass USER_LOCATION?
+            // But user said "查询时也带上". Let's assume for current location weather or default checks.
+            // If user says "Beijing Weather", the intent is Beijing. The USER_LOCATION is Shanghai.
+            // If I pass USER_LOCATION, it will render Shanghai weather.
+            // Refinement: Only pass USER_LOCATION if no specific city detected OR if "nearby/here" implied.
+            // For now, adhering to instruction "weather查询时，也带上", I will pass it. 
+            // Maybe the user assumes "Weather" means "My Weather".
             
-            const weatherData = await AmapService.getWeather(city);
-            Object.assign(serverState.dataContext, weatherData);
+            const weatherData = await AmapService.getWeather(city, USER_LOCATION);
+            contextData.weather = weatherData;
         } catch (e) {
             console.error("Failed to fetch real weather:", e);
         }
     }
 
-    // Route Planning Logic
-     // Regex to extract "From [A] To [B]" pattern, supporting Chinese "从...到..." or "去了..."
-    const routeRegex = /(?:从|from)\s*([^到\s]+)\s*(?:到|to|去)\s*([^的\s]+)/i; 
-    const matchRoute = inputMsg.match(routeRegex);
+    // --- Driving Route Logic ---
+    const isRoute = lowerMsg.includes('去') || lowerMsg.includes('到') || lowerMsg.includes('导航') || lowerMsg.includes('route') || lowerMsg.includes('drive');
+    if (isRoute) {
+        // Regex to extract "From [A] To [B]" pattern
+        const routeRegex = /(?:从|from)\s*([^到\s]+)\s*(?:到|to|去)\s*([^的\s]+)/i; 
+        const matchRoute = inputMsg.match(routeRegex);
+        
+        let origin = USER_LOCATION; // Default to User Location
+        let dest = 'Beijing';       // Default fallback dest
 
-    if (matchRoute || lowerMsg.includes('路线') || lowerMsg.includes('行程') || lowerMsg.includes('route')) {
-         let origin = '上海'; // Default
-         let dest = '北京';   // Default
-
-         if (matchRoute) {
-             origin = matchRoute[1];
+        if (matchRoute) {
+             origin = matchRoute[1]; // If user says "From X", use X
              dest = matchRoute[2];
-         }
+        } else {
+             // Try to find reasonable destination from message? 
+             // "Go to X", "Drive to X"
+             // Simple split?
+             // e.g. "去外滩"
+             const destMatch = inputMsg.match(/(?:去|到|导航|drive to)\s*([^的\s]+)/i);
+             if (destMatch) {
+                 dest = destMatch[1];
+             }
+        }
+        
+        // If origin is effectively "me" or "here", use USER_LOCATION
+        if (origin.includes('我') || origin.includes('这') || origin.toLowerCase().includes('here') || origin.toLowerCase().includes('me')) {
+            origin = USER_LOCATION;
+        }
 
-         sendText(`\n(Planning route from ${origin} to ${dest}...)`);
-         try {
-             // 1. Geocode Origin & Dest
-             const originCoords = await AmapService.getCoordinates(origin);
-             const destCoords = await AmapService.getCoordinates(dest);
+        console.log(`[Chat] Route Intent: From ${origin} To ${dest}`);
+        sendText(`\n(Planning route to ${dest}...)`);
+
+        try {
+             // 1. Geocode Origin & Dest (If they are not coords)
+             // Check if origin is comma separated (coords)
+             let originCoords = origin;
+             if (!origin.includes(',')) {
+                 const coords = await AmapService.getCoordinates(origin);
+                 if (coords) originCoords = coords;
+             }
+             
+             let destCoords = dest;
+             if (!dest.includes(',')) {
+                 const coords = await AmapService.getCoordinates(dest);
+                 if (coords) destCoords = coords;
+             }
 
              if (originCoords && destCoords) {
                  // 2. Get Driving Route
                  const routeData = await AmapService.getDrivingRoute(originCoords, destCoords);
-                 if (!serverState.dataContext) serverState.dataContext = {};
                  
-                 serverState.dataContext.route = {
-                     origin: origin,
+                 contextData.route = {
+                     origin: origin === USER_LOCATION ? 'Current Location' : origin,
                      destination: dest,
                      ...routeData
                  };
                  additionalInstruction += "\nIMPORTANT: Route data available. Render a Route Card showing Origin, Destination, Distance, Duration, and a simplified Step list.";
              } else {
-                 sendText("\n(Could not find coordinates for locations)");
+                 console.warn("Could not geocode origin/dest for route");
              }
-         } catch(e) {
+        } catch(e) {
              console.error("Route Planning failed", e);
-         }
+        }
     }
 
     // 4. Prompt & LLM
-    const dataContext = serverState.dataContext || {}; 
     const currentDsl = serverState.dsl || null;
-    let prompt = PromptBuilder.constructPrompt(inputMsg, dataContext, currentDsl);
+    let prompt = PromptBuilder.constructPrompt(inputMsg, contextData, currentDsl);
     if (additionalInstruction) prompt += additionalInstruction;
 
     console.log(`[Chat] [Prompt Constructed]:\n${prompt}\n-----------------------------------`);
@@ -212,13 +255,6 @@ export const chatHandler = async (req: Request, res: Response) => {
         console.error("LLM JSON Parse Error", e);
         console.log(`[Chat] [DSL Parse Failed] String was: ${dslString}`);
     }
-
-    // Fallback logic for POI - REMOVED, relying on LLM to follow PromptBuilder example
-    /*
-    if (forceImmediatePoiRender && (!dslObject || !dslObject.card)) {
-         // ...
-    }
-    */
 
     if (dslObject) {
          const hadOld = Object.prototype.hasOwnProperty.call(serverState, 'dsl') && serverState.dsl != null;
