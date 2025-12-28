@@ -1,11 +1,9 @@
 import React from 'react';
 import { WidgetMapper } from './WidgetMapper';
-import { DslTemplateLoader } from './DslParser';
-import { DslParser } from './DslParser';
 
 /**
  * 根据组件类型定义和数据上下文渲染组件。
- * @param component DSL 组件定义（来自 YAML）
+ * @param component DSL 组件定义（JSON）
  * @param data 用于解析绑定的当前数据上下文
  * @returns React 节点
  */
@@ -60,39 +58,7 @@ export const renderComponent = (component: any, data: any, onInteraction?: (acti
       }
       return null;
   }
-  
-  // Special handling for Component (Template inclusion)
-  // Allows re-using templates (like partials)
-  if (type === 'Component') {
-      const templateId = properties.template_id;
-      const dataBinding = properties.data_binding; // e.g. "{{poi}}"
-      
-      if (templateId) {
-          // Resolve data binding for the new component scope
-          // Resolve data binding for the new component scope
-          let componentData = data;
-          if (dataBinding) {
-             if (typeof dataBinding === 'string') {
-                const key = dataBinding.replace(/{{|}}/g, '').trim();
-                componentData = resolvePath(key, data) || data;
-             } else if (typeof dataBinding === 'object') {
-                // Direct object injection (from JSON DSL)
-                componentData = dataBinding;
-             }
-          }
-          
-          // Load and fill template dynamically
-          const filledYaml = DslTemplateLoader.loadAndFillTemplate(templateId, componentData);
-          // Parse and Render the loaded template
-          return DslParser.parse(filledYaml, componentData);
-          // Note: DslParser.parse calls renderComponent internally? 
-          // Wait, DslParser.parse returns ReactNode?
-          // I need to check DslParser definition. Assuming for now I can't easily pass it if parse wraps it.
-          // But looking at line 77: DslParser.parse(filledYaml, componentData)
-          // If DslParser invokes renderComponent, I need to update DslParser too.
-      }
-      return null;
-  }
+
 
   // Resolve properties: Replace {{binding}} with actual values
   const resolvedProps: any = {};

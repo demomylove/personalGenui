@@ -160,10 +160,8 @@ const ChatScreen = () => {
       console.log('DSL:', dslString);
 
       if (dslString) {
-        // Auto-detect JSON component vs legacy string DSL
-        const widget = await (DslFactory as any).parseAny
-          ? (DslFactory as any).parseAny(dslString)
-          : DslFactory.parseDsl(dslString);
+        // Parse DSL (JSON or Yaml - now supporting JSON directly from parseAny)
+        const widget = await DslFactory.parseAny(dslString);
         updateTaskStatus(taskMsgId, 'completed', widget);
         setLastCardMsgId(taskMsgId); // 记住此卡片 ID，供后续修改使用
       } else {
@@ -222,7 +220,7 @@ const ChatScreen = () => {
         style={{ flex: 1 }}
       >
         <View style={styles.header}>
-            <Text style={styles.headerTitle}>Demo</Text>
+            <Text style={styles.headerTitle}>SenseGenUIKit</Text>
         </View>
         
         <FlatList

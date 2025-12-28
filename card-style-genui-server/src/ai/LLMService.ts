@@ -110,11 +110,11 @@ export class LLMService {
           {
             component_type: "Card",
             properties: {
-              background_color: "#FFCC80",
+              background_color: "#E3F2FD",
               padding: 24,
               shape_border_radius: 24,
               elevation: 8,
-              width: 340
+              width: 380
             },
             children: [
               {
@@ -221,7 +221,7 @@ export class LLMService {
 
       const poiCards = pois.map((poi: any) => ({
         component_type: "Card",
-        properties: { background_color: "#E8F5E9", elevation: 4, border_radius: 24, padding: 20, width: 380 },
+        properties: { background_color: "#E8F5E9", elevation: 4, border_radius: 24, padding: 20, width: "100%" },
         children: [
           {
             component_type: "Row",
@@ -283,15 +283,15 @@ export class LLMService {
                 children: [
                    { 
                      component_type: "Text", 
-                     properties: { text: "🚗 Driving Route", font_size: 20, font_weight: "bold", color: "#1565C0" } 
+                     properties: { text: "🚗 驾车路线", font_size: 20, font_weight: "bold", color: "#1565C0" } 
                    },
                    {
                      component_type: "Row",
                      properties: { main_axis_alignment: "space_between", width: "100%" },
                      children: [
-                        { component_type: "Text", properties: { text: routeData.origin, font_size: 18, font_weight: "bold", color: "#333" } },
+                        { component_type: "Text", properties: { text: "上海市", font_size: 18, font_weight: "bold", color: "#333" } },
                         { component_type: "Text", properties: { text: "➝", font_size: 18, color: "#999" } },
-                        { component_type: "Text", properties: { text: routeData.destination, font_size: 18, font_weight: "bold", color: "#333" } }
+                        { component_type: "Text", properties: { text: "北京市", font_size: 18, font_weight: "bold", color: "#333" } }
                      ]
                    },
                    {
@@ -302,16 +302,16 @@ export class LLMService {
                           component_type: "Column",
                           properties: { spacing: 4 },
                           children: [
-                             { component_type: "Text", properties: { text: "DISTANCE", font_size: 12, color: "#1976D2" } },
-                             { component_type: "Text", properties: { text: routeData.distance, font_size: 24, font_weight: "bold", color: "#0D47A1" } }
+                             { component_type: "Text", properties: { text: "距离", font_size: 12, color: "#1976D2" } },
+                             { component_type: "Text", properties: { text: "1214 公里", font_size: 24, font_weight: "bold", color: "#0D47A1" } }
                           ]
                         },
                         {
                           component_type: "Column",
                           properties: { spacing: 4 },
                           children: [
-                             { component_type: "Text", properties: { text: "DURATION", font_size: 12, color: "#1976D2" } },
-                             { component_type: "Text", properties: { text: routeData.duration, font_size: 24, font_weight: "bold", color: "#0D47A1" } }
+                             { component_type: "Text", properties: { text: "预计耗时", font_size: 12, color: "#1976D2" } },
+                             { component_type: "Text", properties: { text: "14 小时", font_size: 24, font_weight: "bold", color: "#0D47A1" } }
                           ]
                         }
                      ]
@@ -336,21 +336,27 @@ export class LLMService {
         children: [
           {
             component_type: "Card",
-            properties: { padding: 16, shape_border_radius: 16, elevation: 4 },
+            properties: { 
+              background_color: "#FFFFFF",
+              padding: 24, 
+              shape_border_radius: 24, 
+              elevation: 4,
+              width: 380
+            },
             children: [
               {
                 component_type: "Column",
-                properties: { cross_axis_alignment: "center", spacing: 12 },
+                properties: { cross_axis_alignment: "center", spacing: 16 },
                 children: [
-                  { component_type: "Text", properties: { text: "Here is a cartoon image for you:", font_size: 18, font_weight: "bold" } },
+                  { component_type: "Text", properties: { text: "Here is a cartoon image for you:", font_size: 20, font_weight: "bold", color: "#333333" } },
                   { 
                     component_type: "Image", 
                     properties: { 
-                      source: `https://loremflickr.com/800/600/${keyword}`,
-                      width: 200,
-                      height: 150,
+                      source: `https://loremflickr.com/800/600/${keyword}?random=${new Date().getTime()}`,
+                      width: "100%",
+                      height: 320,
                       content_fit: "cover",
-                      border_radius: 12
+                      border_radius: 16
                     } 
                   }
                 ]

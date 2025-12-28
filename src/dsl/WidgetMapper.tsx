@@ -397,6 +397,8 @@ export class WidgetMapper {
                     shadowRadius: props.shadow_radius || 2,
                     borderWidth: props.border_width || 0,
                     borderColor: props.border_color || undefined,
+                    width: props.width || 'auto',
+                    height: props.height || 'auto',
                 };
 
                 const renderContent = () => (

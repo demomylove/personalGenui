@@ -73,22 +73,22 @@ type Component = {
 # 天气界面设计指南
 
 ## 设计风格
-- 使用温暖的橙色系配色方案
-- 主背景色: '#FFCC80' (Medium Orange)
+- 使用清新的淡蓝色系配色方案
+- 主背景色: '#E3F2FD' (Light Blue)
 - 根容器背景: '#FFFFFF' (White)
-- 强调色: '#E65100' (Deep Orange)
+- 强调色: '#0288D1' (Light Blue Accent)
 
 ## 布局结构
-- 卡片宽度固定为340px，居中显示
+- 卡片宽度固定为380px，居中显示
 - 顶部: 城市名(左) + 日期(右)
 - 中部: 天气图标(左) + 大号温度(右)
 - 底部: 天气描述 + 湿度和风信息
 
 ## 示例
-用户: "上海天气"
-数据: {"temp": "15", "city": "上海市", "date": "2025-12-23", "weekday": "周二", "cond": "阴", "feels_like": "15", "humidity": "60%", "wind": "西风≤3级"}
+User: "上海天气"
+Data: {"temp": "15", "city": "上海市", "date": "2025-12-23", "weekday": "周二", "cond": "阴", "feels_like": "15", "humidity": "60%", "wind": "西风≤3级"}
 
-输出:
+Output:
 {
   "component_type": "Center",
   "properties": { "background_color": "#FFFFFF" },
@@ -96,11 +96,11 @@ type Component = {
     {
       "component_type": "Card",
       "properties": {
-        "background_color": "#FFCC80", 
+        "background_color": "#E3F2FD", 
         "padding": 24, 
         "shape_border_radius": 24, 
         "elevation": 8,
-        "width": 340
+        "width": 380
       },
       "children": [
         {
@@ -271,7 +271,7 @@ type Component = {
          { "component_type": "Text", "properties": { "text": "附近的精选好店", "font_size": 28, "font_weight": "bold", "color": "#2E7D32" } },
          {
            "component_type": "Card",
-           "properties": { "background_color": "#E8F5E9", "elevation": 4, "border_radius": 24, "padding": 20, "width": 380 },
+           "properties": { "background_color": "#E8F5E9", "elevation": 4, "border_radius": 24, "padding": 20, "width": "100%" },
            "children": [
              {
                "component_type": "Row",
@@ -350,15 +350,15 @@ type Component = {
           "children": [
              { 
                "component_type": "Text", 
-               "properties": { "text": "🚗 Driving Route", "font_size": 20, "font_weight": "bold", "color": "#1565C0" } 
+               "properties": { "text": "🚗 驾车路线", "font_size": 20, "font_weight": "bold", "color": "#1565C0" } 
              },
              {
                "component_type": "Row",
                "properties": { "main_axis_alignment": "space_between", "width": "100%" },
                "children": [
-                  { "component_type": "Text", "properties": { "text": "Shanghai", "font_size": 18, "font_weight": "bold", "color": "#333" } },
+                  { "component_type": "Text", "properties": { "text": "上海市", "font_size": 18, "font_weight": "bold", "color": "#333" } },
                   { "component_type": "Text", "properties": { "text": "➝", "font_size": 18, "color": "#999" } },
-                  { "component_type": "Text", "properties": { "text": "Beijing", "font_size": 18, "font_weight": "bold", "color": "#333" } }
+                  { "component_type": "Text", "properties": { "text": "北京市", "font_size": 18, "font_weight": "bold", "color": "#333" } }
                ]
              },
              {
@@ -369,21 +369,21 @@ type Component = {
                     "component_type": "Column",
                     "properties": { "spacing": 4 },
                     "children": [
-                       { "component_type": "Text", "properties": { "text": "DISTANCE", "font_size": 12, "color": "#1976D2" } },
-                       { "component_type": "Text", "properties": { "text": "1214 km", "font_size": 24, "font_weight": "bold", "color": "#0D47A1" } }
+                       { "component_type": "Text", "properties": { "text": "距离", "font_size": 12, "color": "#1976D2" } },
+                       { "component_type": "Text", "properties": { "text": "1214 公里", "font_size": 24, "font_weight": "bold", "color": "#0D47A1" } }
                     ]
                   },
                   {
                     "component_type": "Column",
                     "properties": { "spacing": 4 },
                     "children": [
-                       { "component_type": "Text", "properties": { "text": "DURATION", "font_size": 12, "color": "#1976D2" } },
-                       { "component_type": "Text", "properties": { "text": "14 h", "font_size": 24, "font_weight": "bold", "color": "#0D47A1" } }
+                       { "component_type": "Text", "properties": { "text": "预计耗时", "font_size": 12, "color": "#1976D2" } },
+                       { "component_type": "Text", "properties": { "text": "14 小时", "font_size": 24, "font_weight": "bold", "color": "#0D47A1" } }
                     ]
                   }
                ]
              },
-             { "component_type": "Text", "properties": { "text": "• Start from People's Square\\n• Enter G2 Highway", "font_size": 14, "color": "#546E7A", "max_lines": 10 } }
+             { "component_type": "Text", "properties": { "text": "• 从人民广场出发\\n• 进入G2高速", "font_size": 14, "color": "#546E7A", "max_lines": 10 } }
           ]
         }
       ]
@@ -408,9 +408,10 @@ type Component = {
 # 卡通图片界面设计指南
 
 ## 设计风格
-- 使用活泼的彩色方案
+- 使用柔和的配色方案
 - 主背景色: '#FFFFFF' (White)
-- 卡片背景: 柔和的彩色
+- 卡片背景: '#FFFFFF' 或 淡灰色 '#F5F5F5'
+- 严禁使用红色、深橙色等强烈的背景色
 
 ## 布局结构
 - 简洁的卡片布局
@@ -426,21 +427,27 @@ type Component = {
   "children": [
     {
       "component_type": "Card",
-      "properties": { "padding": 16, "shape_border_radius": 16, "elevation": 4 },
+      "properties": { 
+        "background_color": "#FFFFFF",
+        "padding": 24, 
+        "shape_border_radius": 24, 
+        "elevation": 4,
+        "width": 380
+      },
       "children": [
         {
           "component_type": "Column",
-          "properties": { "cross_axis_alignment": "center", "spacing": 12 },
+          "properties": { "cross_axis_alignment": "center", "spacing": 16 },
           "children": [
-            { "component_type": "Text", "properties": { "text": "Here is a puppy for you:", "font_size": 18, "font_weight": "bold" } },
+            { "component_type": "Text", "properties": { "text": "Here is a puppy for you:", "font_size": 20, "font_weight": "bold", "color": "#333333" } },
             { 
               "component_type": "Image", 
               "properties": { 
-                "source": "https://loremflickr.com/800/600/puppy",
-                "width": 200,
-                "height": 150,
+                "source": "https://loremflickr.com/800/600/dog?lock=5678",
+                "width": "100%",
+                "height": 320,
                 "content_fit": "cover",
-                "border_radius": 12
+                "border_radius": 16
               } 
             }
           ]
