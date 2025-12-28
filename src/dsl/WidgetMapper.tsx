@@ -14,6 +14,37 @@ import {
 import Slider from '@react-native-community/slider';
 import LinearGradient from "react-native-linear-gradient";
 
+// 网络图片组件，支持加载失败时显示备用图片
+interface NetworkImageProps {
+    originalSource: string;
+    fallbackSource: string;
+    style: ImageStyle;
+    fadeDuration?: number;
+}
+
+const NetworkImage: React.FC<NetworkImageProps> = ({
+    originalSource,
+    fallbackSource,
+    style,
+    fadeDuration = 200
+}) => {
+    const [imageError, setImageError] = React.useState(false);
+    const imageSource = imageError ? { uri: fallbackSource } : { uri: originalSource };
+    
+    return (
+        <Image
+            source={imageSource}
+            style={style}
+            resizeMode={style.resizeMode as any}
+            onError={(e) => {
+                console.warn('[Android] 图片加载失败:', e.nativeEvent.error);
+                setImageError(true);
+            }}
+            fadeDuration={fadeDuration}
+        />
+    );
+};
+
 // Emoji 图标映射（避免安卓端矢量图标原生依赖问题）
 const ICON_MAP: Record<string, string> = {
     wb_sunny: '☀️',
@@ -662,12 +693,11 @@ export class WidgetMapper {
         // 1. 网络图片（安卓端 http/https 支持）
         if (typeof imageSource === 'string' && (imageSource.startsWith('http') || imageSource.startsWith('https'))) {
             return (
-                <Image
-                    source={{uri: imageSource}}
+                <NetworkImage
+                    originalSource={imageSource}
+                    fallbackSource="https://fastly.picsum.photos/id/122/300/150.jpg?hmac=FuaKxO8JrSchWqleBFEHvK_GGKrJPUQSxtTHPqm-dYs"
                     style={imageStyle}
-                    resizeMode={imageStyle.resizeMode as any}
-                    onError={(e) => console.warn('[Android] 图片加载失败:', e.nativeEvent.error)}
-                    fadeDuration={props.fade_duration || 200} // 安卓端图片渐入效果
+                    fadeDuration={props.fade_duration || 200}
                 />
             );
         }

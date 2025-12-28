@@ -28,18 +28,18 @@ interface VoiceInputProps {
 }
 
 const VoiceInput: React.FC<VoiceInputProps> = ({
-                                                   value = '',
-                                                   onChangeText,
-                                                   placeholder = '点击麦克风说话',
-                                                   onSubmitEditing,
-                                                   style,
-                                                   disabled = false,
-                                                   asrType = 'unisound',
-                                                   duplexSwitch = true,
-                                                   hotwordJsonStr = '{"hot":[]}',
-                                                   initialPermissionStatus = null,
-                                                   onPermissionRequest,
-                                               }) => {
+    value = '',
+    onChangeText,
+    placeholder = '点击麦克风说话',
+    onSubmitEditing,
+    style,
+    disabled = false,
+    asrType = 'unisound',
+    duplexSwitch = true,
+    hotwordJsonStr = '{"hot":[]}',
+    initialPermissionStatus = null,
+    onPermissionRequest,
+}) => {
     const [isListening, setIsListening] = useState(false);
     const [isInitializing, setIsInitializing] = useState(false);
     const [interimText, setInterimText] = useState('');
@@ -489,7 +489,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#6366F1',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 12,
         shadowColor: '#6366F1',
         shadowOffset: {
             width: 0,

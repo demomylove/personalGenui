@@ -10,7 +10,9 @@ import {
     FlatList,
     Platform,
     Dimensions,
-    ToastAndroid, ImageBackground
+    ToastAndroid,
+    ImageBackground,
+    NativeModules
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
@@ -53,9 +55,9 @@ interface MainScreenProps {
 }
 
 export default function MainScreen({
-                                       initialPermissionStatus = null,
-                                       onPermissionRequest
-                                   }: MainScreenProps) {
+    initialPermissionStatus = null,
+    onPermissionRequest
+}: MainScreenProps) {
     const client = useRef(new AGUIClient(SERVER_URL)).current;
     const flatListRef = useRef<FlatList>(null);
     const [status, setStatus] = useState<TaskStatus>('thinking');
@@ -95,6 +97,19 @@ export default function MainScreen({
                 // TODO: 实现 API 调用
                 console.log('[MainScreen] Call API:', action.payload?.api_endpoint);
                 Alert.alert('API 调用', `调用: ${action.payload?.api_endpoint}`);
+                break;
+            case 'open_music_app':
+                if (Platform.OS === 'android') {
+                    try {
+                        NativeModules.MusicModule.openNeteaseMusic();
+                        ToastAndroid.show('正在打开网易云音乐...', ToastAndroid.SHORT);
+                    } catch (e) {
+                        console.error('Failed to call native music module', e);
+                        ToastAndroid.show('调用原生模块失败', ToastAndroid.SHORT);
+                    }
+                } else {
+                    Alert.alert("提示", "iOS暂不支持跳转本地音乐");
+                }
                 break;
             default:
                 console.warn('[MainScreen] Unknown action type:', action.action_type);

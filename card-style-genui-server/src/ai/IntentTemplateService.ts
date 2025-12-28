@@ -8,22 +8,22 @@
 import { IntentType, IntentResult } from './IntentRecognitionService';
 
 export class IntentTemplateService {
-    
-    /**
-     * 根据意图类型获取专门的提示词模板
-     */
-    static getIntentSpecificPrompt(intent: IntentResult, userQuery: string, dataContext: any, currentDsl?: any): string {
-        const basePrompt = this.getBasePrompt();
-        const intentSpecificPrompt = this.getIntentPrompt(intent.intent, userQuery, dataContext, currentDsl);
-        
-        return basePrompt + intentSpecificPrompt;
-    }
 
-    /**
-     * 获取基础提示词
-     */
-    private static getBasePrompt(): string {
-        return `
+  /**
+   * 根据意图类型获取专门的提示词模板
+   */
+  static getIntentSpecificPrompt(intent: IntentResult, userQuery: string, dataContext: any, currentDsl?: any): string {
+    const basePrompt = this.getBasePrompt();
+    const intentSpecificPrompt = this.getIntentPrompt(intent.intent, userQuery, dataContext, currentDsl);
+
+    return basePrompt + intentSpecificPrompt;
+  }
+
+  /**
+   * 获取基础提示词
+   */
+  private static getBasePrompt(): string {
+    return `
 # Role
 你是一个专业的UI生成助手，能够根据用户意图生成最适合的界面设计。
 
@@ -41,35 +41,35 @@ type Component = {
 4. 使用提供的数据上下文填充UI
 5. 用户明确要求的文本永远覆盖数据上下文
 `;
-    }
+  }
 
-    /**
-     * 根据意图类型获取专门的提示词
-     */
-    private static getIntentPrompt(intent: IntentType, userQuery: string, dataContext: any, currentDsl?: any): string {
-        switch (intent) {
-            case IntentType.WEATHER:
-                return this.getWeatherPrompt(userQuery, dataContext, currentDsl);
-            case IntentType.MUSIC:
-                return this.getMusicPrompt(userQuery, dataContext, currentDsl);
-            case IntentType.POI:
-                return this.getPoiPrompt(userQuery, dataContext, currentDsl);
-            case IntentType.ROUTE_PLANNING:
-                return this.getRoutePrompt(userQuery, dataContext, currentDsl);
-            case IntentType.CARTOON_IMAGE:
-                return this.getCartoonImagePrompt(userQuery, dataContext, currentDsl);
-            case IntentType.CHAT:
-                return this.getChatPrompt(userQuery, dataContext, currentDsl);
-            default:
-                return this.getDefaultPrompt(userQuery, dataContext, currentDsl);
-        }
+  /**
+   * 根据意图类型获取专门的提示词
+   */
+  private static getIntentPrompt(intent: IntentType, userQuery: string, dataContext: any, currentDsl?: any): string {
+    switch (intent) {
+      case IntentType.WEATHER:
+        return this.getWeatherPrompt(userQuery, dataContext, currentDsl);
+      case IntentType.MUSIC:
+        return this.getMusicPrompt(userQuery, dataContext, currentDsl);
+      case IntentType.POI:
+        return this.getPoiPrompt(userQuery, dataContext, currentDsl);
+      case IntentType.ROUTE_PLANNING:
+        return this.getRoutePrompt(userQuery, dataContext, currentDsl);
+      case IntentType.CARTOON_IMAGE:
+        return this.getCartoonImagePrompt(userQuery, dataContext, currentDsl);
+      case IntentType.CHAT:
+        return this.getChatPrompt(userQuery, dataContext, currentDsl);
+      default:
+        return this.getDefaultPrompt(userQuery, dataContext, currentDsl);
     }
+  }
 
-    /**
-     * 天气意图的专门模板
-     */
-    private static getWeatherPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
-        return `
+  /**
+   * 天气意图的专门模板
+   */
+  private static getWeatherPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
+    return `
 # 天气界面设计指南
 
 ## 设计风格
@@ -144,76 +144,82 @@ type Component = {
 
 请根据天气设计指南生成界面。
 `;
-    }
+  }
 
-    /**
-     * 音乐意图的专门模板
-     */
-    private static getMusicPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
-        return `
+  /**
+   * 音乐意图的专门模板
+   */
+  private static getMusicPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
+    return `
 # 音乐界面设计指南
 
 ## 设计风格
-- 使用深紫色系配色方案
-- 主背景色: '#6200EA' (Deep Purple Accent)
-- 文字颜色: '#FFFFFF' (White) 和 '#DDDDDD' (Light Gray)
+- 使用活泼清新配色方案
+- 主背景色: '#FAFAFA' (Very Light Grey)
+- 卡片背景: '#F3E5F5' (Light Purple/Pink) - 柔和的彩色
+- 文字颜色: '#333333' (Dark Grey) 和 '#666666' (Medium Grey)
 
 ## 布局结构
-- 卡片宽度280px，居中显示
-- 顶部: 专辑封面图片
-- 中部: 歌曲名 + 歌手名
-- 底部: 播放控制和喜欢按钮
+- 卡片宽度自适应(92%)，居中显示
+- **交互**: 点击卡片跳转系统音乐播放器 (action: open_music_app)
+- 简洁清爽的卡片布局
+- 顶部: 专辑封面图片 (圆角，作为主视觉)
+- 中部: 歌曲信息 (加粗标题)
+- 底部: 简约的播放控制
 
 ## 示例
 用户: "播放音乐"
 输出:
 {
   "component_type": "Center",
-  "properties": {},
+  "properties": { "background_color": "#FFFFFF" },
   "children": [
     {
-      "component_type": "SizedBox",
-      "properties": { width: 280 },
+      "component_type": "Card",
+      "properties": {
+        "background_color": "#F3E5F5",
+        "padding": 16, 
+        "shape_border_radius": 24,
+        "elevation": 4, 
+        "width": "92%",
+        "on_click": { "action_type": "open_music_app" }
+      },
       "children": [
         {
-          "component_type": "Card",
-          "properties": {
-            "background_color": "#6200EA",
-            "padding": 12,
-            "shape_border_radius": 16,
-            "elevation": 8,
-            "margin": 0
-          },
+          "component_type": "Column",
+          "properties": { "spacing": 12, "cross_axis_alignment": "center" },
           "children": [
+             {
+               "component_type": "Image",
+               "properties": {
+                 "source": "https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=400&auto=format&fit=crop",
+                 "width": "220",
+                 "height": 180,
+                 "border_radius": 16,
+                 "content_fit": "cover"
+               }
+             },
             {
               "component_type": "Column",
-              "properties": { spacing: 8, "cross_axis_alignment": "center" },
+              "properties": { "spacing": 4, "cross_axis_alignment": "center" },
               "children": [
-                 {
-                   "component_type": "Image",
-                   "properties": { 
-                     "source": "https://p1.music.126.net/s8rG2Jc8R9w0g7_l_G8jRg==/109951165792276536.jpg", 
-                     "width": "100%", 
-                     "height": 150, 
-                     "border_radius": 12 
-                   }
-                 },
                 {
                   "component_type": "Text",
-                  "properties": { "text": "七里香", "font_size": 18, "font_weight": "bold", "color": "#FFFFFF" }
+                  "properties": { "text": "七里香", "font_size": 20, "font_weight": "bold", "color": "#333333" }
                 },
                 {
                   "component_type": "Text",
-                  "properties": { "text": "周杰伦", "font_size": 14, "color": "#DDDDDD" }
-                },
-                {
-                  "component_type": "Row",
-                  "properties": { spacing: 8, "main_axis_alignment": 'center' },
-                  "children": [
-                     { "component_type": "Text", "properties": { "text": "▶", "font_size": 20, "color": "#00E676" } },
-                     { "component_type": "Text", "properties": { "text": "❤️", "font_size": 18, "color": "#FF4081" } }
-                  ]
+                  "properties": { "text": "周杰伦", "font_size": 14, "color": "#666666" }
                 }
+              ]
+            },
+            {
+              "component_type": "Row",
+              "properties": { "spacing": 24, "main_axis_alignment": "center" },
+              "children": [
+                 { "component_type": "Text", "properties": { "text": "⏮", "font_size": 24, "color": "#8E24AA" } },
+                 { "component_type": "Text", "properties": { "text": "▶", "font_size": 32, "color": "#8E24AA" } },
+                 { "component_type": "Text", "properties": { "text": "⏭", "font_size": 24, "color": "#8E24AA" } }
               ]
             }
           ]
@@ -230,13 +236,13 @@ type Component = {
 
 请根据音乐设计指南生成界面。
 `;
-    }
+  }
 
-    /**
-     * POI意图的专门模板
-     */
-    private static getPoiPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
-        return `
+  /**
+   * POI意图的专门模板
+   */
+  private static getPoiPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
+    return `
 # POI搜索界面设计指南
 
 ## 设计风格
@@ -305,13 +311,13 @@ type Component = {
 
 请根据POI设计指南生成界面。
 `;
-    }
+  }
 
-    /**
-     * 出行规划意图的专门模板
-     */
-    private static getRoutePrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
-        return `
+  /**
+   * 出行规划意图的专门模板
+   */
+  private static getRoutePrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
+    return `
 # 出行规划界面设计指南
 
 ## 设计风格
@@ -392,13 +398,13 @@ type Component = {
 
 请根据出行规划设计指南生成界面。
 `;
-    }
+  }
 
-    /**
-     * 卡通图片意图的专门模板
-     */
-    private static getCartoonImagePrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
-        return `
+  /**
+   * 卡通图片意图的专门模板
+   */
+  private static getCartoonImagePrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
+    return `
 # 卡通图片界面设计指南
 
 ## 设计风格
@@ -451,13 +457,13 @@ type Component = {
 
 请根据卡通图片设计指南生成界面。
 `;
-    }
+  }
 
-    /**
-     * 聊天意图的专门模板
-     */
-    private static getChatPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
-        return `
+  /**
+   * 聊天意图的专门模板
+   */
+  private static getChatPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
+    return `
 # 聊天界面设计指南
 
 ## 设计风格
@@ -496,13 +502,13 @@ type Component = {
 
 请根据聊天设计指南生成界面。
 `;
-    }
+  }
 
-    /**
-     * 默认模板
-     */
-    private static getDefaultPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
-        return `
+  /**
+   * 默认模板
+   */
+  private static getDefaultPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
+    return `
 # 默认界面设计指南
 
 ## 设计风格
@@ -516,5 +522,5 @@ type Component = {
 
 请生成合适的界面来响应用户查询。
 `;
-    }
+  }
 }
