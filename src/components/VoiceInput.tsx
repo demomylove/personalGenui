@@ -416,9 +416,6 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
                             <View style={styles.recordingRing}/>
                         )}
                     </TouchableOpacity>
-                    <Text style={styles.micHintText}>
-                        {isListening ? '正在录音...' : '长按说话'}
-                    </Text>
                 </View>
 
                 {getPermissionStatusText() ? (

@@ -77,26 +77,17 @@ const TaskCard: React.FC<TaskCardProps> = ({ status, content }) => {
           start={{x: 0.5, y: -0.3}} // 渐变起始点
           end={{x: 0.5, y: 1.3}}   // 渐变结束点
           locations={[0, 1]} // 颜色位置
-          style={[styles.card, {opacity: 1,padding : 20}]}
+          style={[styles.card, {opacity: 1,padding : 15}]}
       >
           {/* DSL 内容层 */}
          {/*<View style={styles.card}>*/}
           <StatusRow
-              label="思考中"
+              label="思考规划中..."
               icon={require('../assets/ic_thinking.png')}
               active={status === 'thinking'}
               rotating={status === 'thinking'}
               spin={spin}
               done={status === 'thinkingComplete' || status === 'drawing'}
-          />
-          <View style={{ height: 8 }} />
-          <StatusRow
-              label="绘制中"
-              icon={require('../assets/ic_thinking.png')}
-              active={status === 'drawing'}
-              rotating={status === 'drawing'}
-              spin={spin}
-              done={false}
           />
       {/*</View>*/}
       </LinearGradient>

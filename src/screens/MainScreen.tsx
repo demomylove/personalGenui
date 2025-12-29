@@ -69,6 +69,12 @@ export default function MainScreen({
     const [loading, setLoading] = useState(false);
     // 新增：维护完整的 Agent 状态，用于渲染时的数据绑定
     const [agentState, setAgentState] = useState<any>({});
+    const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
+    const isLandscape = () => {
+        const { width, height } = Dimensions.get('window');
+        return width > height;
+    };
+
 
     // 处理按钮点击事件（Toast、Navigate 等）
     const handleInteraction = useCallback((action: any) => {
@@ -283,9 +289,9 @@ export default function MainScreen({
                                     <LinearGradient
                                         colors={['#F0F4FC00', '#7D47C43D']} // 渐变色数组
                                         start={{ x: 0.5, y: -0.3 }} // 渐变起始点
-                                        end={{ x: 0.5, y: 1.3 }}   // 渐变结束点
+                                        end={{ x: 0.5, y: 2.0 }}   // 渐变结束点
                                         locations={[0, 1]} // 颜色位置
-                                        style={[styles.dslContainer, { opacity: 1, padding: 0 }]}
+                                        style={[styles.dslContainer, { opacity: 1, padding: 0 ,  maxWidth: isLandscape() ? '70%' : '80%', maxHeight: "auto"}]}
                                     >
                                         {/* DSL 内容层：数据上下文来源为 agentState.dataContext；不再使用硬编码示例 */}
                                         {renderComponent(item.dsl, agentState.dataContext || agentState || {}, handleInteraction)}
@@ -356,7 +362,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 8,
         borderBottomWidth: 1,
-        borderBottomColor: '#E9E9EB',
+        borderBottomColor: 'rgba(233,233,235,0)',
         marginBottom: 8,
     },
     title: {
@@ -491,7 +497,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         // backgroundColor: "red",
         borderTopWidth: 1,
-        borderTopColor: '#E9E9EB',
+        borderTopColor: 'rgba(233,233,235,0)',
         paddingTop: 16,
     },
     voiceInput: {

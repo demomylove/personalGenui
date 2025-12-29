@@ -64,17 +64,28 @@ const ICON_MAP: Record<string, string> = {
 
 // 安卓端友好的颜色映射（适配安卓系统配色规范）
 const COLOR_MAP: Record<string, string | undefined> = {
-    neon: '#00BCD4',    // 安卓系统青色 accent
-    gradient: '#FF6E40',// 安卓系统深橙色 accent
-    default: '#69F0AE', // 安卓系统绿色 accent
-    primary: '#2196F3', // 安卓系统主蓝色
-    secondary: '#FF9800',// 安卓系统次橙色
-    error: '#F44336',   // 安卓系统错误红色
-    success: '#4CAF50', // 安卓系统成功绿色
-    text: '#212121',    // 安卓系统主文本色
-    textSecondary: '#757575', // 安卓系统次要文本色
-    background: '#FFFFFF', // 安卓系统默认背景色
-    card: '#FFFFFF',    // 安卓系统卡片背景色
+    neon: undefined,    // 安卓系统青色 accent
+    gradient: undefined,// 安卓系统深橙色 accent
+    default: undefined, // 安卓系统绿色 accent
+    primary: undefined, // 安卓系统主蓝色
+    secondary: undefined,// 安卓系统次橙色
+    error: undefined,   // 安卓系统错误红色
+    success: undefined, // 安卓系统成功绿色
+    text: undefined,    // 安卓系统主文本色
+    textSecondary: 'rgba(255,255,255,0)', // 安卓系统次要文本色
+    background: 'rgba(255,255,255,0)', // 安卓系统默认背景色
+    card: 'rgba(255,255,255,0)',    // 安卓系统卡片背景色
+    // neon: '#00BCD4',    // 安卓系统青色 accent
+    // gradient: '#FF6E40',// 安卓系统深橙色 accent
+    // default: '#69F0AE', // 安卓系统绿色 accent
+    // primary: '#2196F3', // 安卓系统主蓝色
+    // secondary: '#FF9800',// 安卓系统次橙色
+    // error: '#F44336',   // 安卓系统错误红色
+    // success: '#4CAF50', // 安卓系统成功绿色
+    // text: '#212121',    // 安卓系统主文本色
+    // textSecondary: 'rgba(255,255,255,0)', // 安卓系统次要文本色
+    // background: 'rgba(255,255,255,0)', // 安卓系统默认背景色
+    // card: 'rgba(255,255,255,0)',    // 安卓系统卡片背景色
 };
 
 /**
@@ -107,8 +118,8 @@ export class WidgetMapper {
             case 'column': {
                 const columnStyle: ViewStyle = {
                     flexDirection: 'column',
-                    alignItems: this.parseCrossAxisAlignment(props.cross_axis_alignment || props.crossAxisAlignment),
-                    justifyContent: this.parseMainAxisAlignment(props.main_axis_alignment || props.mainAxisAlignment),
+                    alignItems: this.parseCrossAxisAlignment(props.cross_axis_alignment),
+                    justifyContent: this.parseMainAxisAlignment(props.main_axis_alignment),
                     padding: this.parsePadding(props.padding),
                     paddingTop: props.padding_top,
                     paddingBottom: props.padding_bottom,
@@ -156,8 +167,8 @@ export class WidgetMapper {
             case 'row': {
                 const rowStyle: ViewStyle = {
                     flexDirection: 'row',
-                    alignItems: this.parseCrossAxisAlignment(props.cross_axis_alignment || props.crossAxisAlignment),
-                    justifyContent: this.parseMainAxisAlignment(props.main_axis_alignment || props.mainAxisAlignment),
+                    alignItems: this.parseCrossAxisAlignment(props.cross_axis_alignment),
+                    justifyContent: this.parseMainAxisAlignment(props.main_axis_alignment),
                     padding: this.parsePadding(props.padding),
                     paddingTop: props.padding_top,
                     paddingBottom: props.padding_bottom,
@@ -456,7 +467,7 @@ export class WidgetMapper {
                     >
                         <Text
                             style={{
-                                color: props.text_color || '#FFFFFF',
+                                color: props.text_color || COLOR_MAP.text,
                                 fontSize: props.font_size || 16,
                                 fontWeight: this.parseFontWeight(props.font_weight || 'bold'),
                                 textAlign: 'center',
