@@ -12,6 +12,7 @@
   "dependencies": {
     "@ag-ui/client": "^0.0.42",
     "@ag-ui/core": "^0.0.42",
+    "@react-native-community/geolocation": "^3.4.0",
     "@react-native-community/slider": "^5.1.1",
     "@react-native/new-app-screen": "0.82.1",
     "axios": "^1.13.2",

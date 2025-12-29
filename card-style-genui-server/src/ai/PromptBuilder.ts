@@ -12,7 +12,7 @@ export class PromptBuilder {
     const dataString = JSON.stringify(dataContext, null, 2);
     const dslString = currentDsl ? JSON.stringify(currentDsl, null, 2) : "None (Initial Generation)";
 
-                 let styleGuide = `
+    let styleGuide = `
 # Design System & Style Guide (STRICT)
 You are a Senior UI Designer known for "Apple-style" minimalism with clean, modern aesthetics.
 
@@ -129,7 +129,7 @@ Output:
           "component_type": "Column",
           "properties": { "cross_axis_alignment": "center", "spacing": 16 },
           "children": [
-            { "component_type": "Text", "properties": { "text": "Here is a puppy for you:", "font_size": 20, "font_weight": "bold", "color": "#333333" } },
+            { "component_type": "Text", "properties": { "text": "为您生成的小狗:", "font_size": 20, "font_weight": "bold", "color": "#333333" } },
             { 
               "component_type": "Image", 
               "properties": { 
@@ -141,7 +141,7 @@ Output:
                 "color": "transparent" 
               } 
             },
-            { "component_type": "Text", "properties": { "text": "(NOTE: Background MUST be White, NO RED)", "font_size": 10, "color": "#999999" } }
+            { "component_type": "Text", "properties": { "text": "(注: 背景必须是白色, 不要红色)", "font_size": 10, "color": "#999999" } }
           ]
         }
       ]
@@ -149,11 +149,11 @@ Output:
   ]
 }
 `;
-    
+
     let poiExample = `
-# Example: POI List (Nearby Places - Large & Green Style)
-User: "Nearby Coffee"
-Data: { "pois": [ { "name": "Starbucks Reserve", "address": "123 Main St (Near Park)", "rating": "4.8", "cost": "¥45", "opentimeToday": "07:00-22:00", "image": "http://img.com/1" }, { "name": "Luckin Coffee", "address": "456 Side St", "rating": "4.5", "cost": "¥18", "opentimeToday": "08:00-20:00", "image": "http://img.com/2" } ] }
+# Example: POI List (Nearby Places - Compact & 380 Width)
+User: "附近咖啡"
+Data: { "pois": [ { "name": "星巴克甄选", "address": "中山北路123号", "rating": "4.8", "cost": "¥45", "opentimeToday": "07:00-22:00", "image": "http://img.com/1" }, { "name": "瑞幸咖啡", "address": "华山路456号", "rating": "4.5", "cost": "¥18", "opentimeToday": "08:00-20:00", "image": "http://img.com/2" } ] }
 Output:
 {
   "component_type": "Center",
@@ -161,33 +161,33 @@ Output:
   "children": [
     {
       "component_type": "Column",
-      "properties": { "spacing": 16, "padding": 20 },
+      "properties": { "spacing": 12, "padding": 16, "width": 380 }, // Width limited to 380
       "children": [
-         { "component_type": "Text", "properties": { "text": "附近的精选好店", "font_size": 28, "font_weight": "bold", "color": "#2E7D32" } },
+         { "component_type": "Text", "properties": { "text": "附近的精选好店", "font_size": 20, "font_weight": "bold", "color": "#2E7D32" } },
          {
            "component_type": "Card",
-           "properties": { "background_color": "#E8F5E9", "elevation": 4, "border_radius": 24, "padding": 20, "width": "100%", "on_click": { "action_type": "toast", "payload": { "message": "Selected Starbucks" } } },
+           "properties": { "background_color": "#E8F5E9", "elevation": 2, "border_radius": 16, "padding": 8, "width": "100%", "on_click": { "action_type": "toast", "payload": { "message": "已选择星巴克" } } },
            "children": [
              {
                "component_type": "Row",
-               "properties": { "spacing": 20, "cross_axis_alignment": "center", "width": "100%" },
+               "properties": { "spacing": 12, "cross_axis_alignment": "center", "width": "100%" },
                "children": [
-                 { "component_type": "Image", "properties": { "source": "http://img.com/1", "width": 120, "height": 120, "border_radius": 16, "content_fit": "cover" } },
+                 { "component_type": "Image", "properties": { "source": "http://img.com/1", "width": 64, "height": 64, "border_radius": 12, "content_fit": "cover" } },
                  {
                    "component_type": "Column",
-                   "properties": { "flex": 1, "spacing": 8 },
+                   "properties": { "flex": 1, "spacing": 4 },
                    "children": [
-                     { "component_type": "Text", "properties": { "text": "Starbucks Reserve", "font_size": 22, "font_weight": "bold", "color": "#1B5E20" } },
+                     { "component_type": "Text", "properties": { "text": "星巴克甄选", "font_size": 16, "font_weight": "bold", "color": "#1B5E20" } },
                      { 
                        "component_type": "Row",
-                       "properties": { "spacing": 12, "cross_axis_alignment": "center" },
+                       "properties": { "spacing": 8, "cross_axis_alignment": "center" },
                        "children": [
-                          { "component_type": "Text", "properties": { "text": "⭐ 4.8", "font_size": 18, "color": "#F57F17", "font_weight": "bold" } },
-                          { "component_type": "Text", "properties": { "text": "¥45/人", "font_size": 18, "color": "#388E3C" } }
+                          { "component_type": "Text", "properties": { "text": "⭐ 4.8", "font_size": 14, "color": "#F57F17", "font_weight": "bold" } },
+                          { "component_type": "Text", "properties": { "text": "¥45/人", "font_size": 14, "color": "#388E3C" } }
                        ]
                      },
-                     { "component_type": "Text", "properties": { "text": "营业时间: 07:00-22:00", "font_size": 16, "color": "#558B2F" } },
-                     { "component_type": "Text", "properties": { "text": "123 Main St (Near Park)", "font_size": 16, "color": "#757575", "max_lines": 1 } }
+                     { "component_type": "Text", "properties": { "text": "07:00-22:00", "font_size": 12, "color": "#558B2F" } },
+                     { "component_type": "Text", "properties": { "text": "中山北路123号", "font_size": 12, "color": "#757575", "max_lines": 1 } }
                    ]
                  }
                ]
@@ -196,25 +196,43 @@ Output:
          },
          {
            "component_type": "Card",
-           "properties": { "background_color": "#E8F5E9", "elevation": 4, "border_radius": 24, "padding": 20, "width": "100%" },
+           "properties": { "background_color": "#E8F5E9", "elevation": 2, "border_radius": 16, "padding": 8, "width": "100%" },
            "children": [
              {
                "component_type": "Row",
-               "properties": { "spacing": 20, "cross_axis_alignment": "center", "width": "100%" },
+               "properties": { "spacing": 12, "cross_axis_alignment": "center", "width": "100%" },
                "children": [
-                 { "component_type": "Image", "properties": { "source": "http://img.com/2", "width": 120, "height": 120, "border_radius": 16, "content_fit": "cover" } },
+                 { "component_type": "Image", "properties": { "source": "http://img.com/2", "width": 64, "height": 64, "border_radius": 12, "content_fit": "cover" } },
                  { 
                     "component_type": "Column", 
-                    "properties": { "flex": 1, "spacing": 8 },
+                    "properties": { "flex": 1, "spacing": 4 },
                     "children": [ 
-                       { "component_type": "Text", "properties": { "text": "Luckin Coffee", "font_size": 22, "font_weight": "bold", "color": "#1B5E20" } },
-                       { "component_type": "Text", "properties": { "text": "⭐ 4.5  ¥18/人", "font_size": 18, "color": "#388E3C" } }
+                       { "component_type": "Text", "properties": { "text": "瑞幸咖啡", "font_size": 16, "font_weight": "bold", "color": "#1B5E20" } },
+                       { "component_type": "Text", "properties": { "text": "⭐ 4.5  ¥18/人", "font_size": 14, "color": "#388E3C" } }
                     ] 
                  }
                ]
              }
            ]
          }
+      ]
+    }
+  ]
+}
+
+# Example: POI List (No Results)
+User: "Search Coffee"
+Data: { "pois": [], "count": "0", "status": "1" }
+Output:
+{
+  "component_type": "Center",
+  "properties": { "background_color": "#FFFFFF" },
+  "children": [
+    {
+      "component_type": "Card",
+      "properties": { "background_color": "#F5F5F5", "padding": 24, "border_radius": 16, "width": 380 },
+      "children": [
+        { "component_type": "Text", "properties": { "text": "暂无相关数据", "font_size": 16, "color": "#666666", "text_align": "center" } }
       ]
     }
   ]
@@ -355,10 +373,10 @@ ${routeExample}
 # Constraints & Rules
 1. Output MUST be valid JSON.
 2. The root object must be a single Component (e.g., Column, Card).
-3. Do NOT include markdown code blocks.
 4. Use the provided Data Context to populate the UI.
+5. **LANGUAGE CONSTRAINT**: All output text MUST be in Simplified Chinese (简体中文). Do NOT output English unless specifically requested (e.g. "translate to English").
    - Weather/Image/Chat Cards: width: 380.
-   - POI/Route Cards: width: "100%".
+   - POI/Route Cards: width: 380.
 6. **CRITICAL: TEXT OVERRIDE RULE**:
    - User's explicit text request ALWAYS overrides Data Context.
 7. **INTENT & CONTEXT AWARENESS**:

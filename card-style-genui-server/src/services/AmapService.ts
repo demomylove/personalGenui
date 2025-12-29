@@ -16,7 +16,7 @@ export class AmapService {
   // IMPORTANT: Do not commit real API keys; use env var only
   // IMPORTANT: Do not commit real API keys; use env var only
   private static API_KEY = process.env.AMAP_API_KEY || 'df77469c39902532b069d6273e681c77';
-  
+
   // APIs
   private static TEXT_SEARCH_URL = 'https://restapi.amap.com/v3/place/text';
   private static WEATHER_API_URL = 'https://restapi.amap.com/v3/weather/weatherInfo';
@@ -26,22 +26,22 @@ export class AmapService {
   /**
    * Get Coordinates (lon,lat) for an address
    */
-    static async getCoordinates(address: string): Promise<string | null> {
-        if (!this.API_KEY) return null;
-        try {
-            const url = `${this.GEOCODING_API_URL}?address=${encodeURIComponent(address)}&key=${this.API_KEY}`;
-            console.log(`[AmapService] Geo Fetching: ${url}`);
-            const response = await fetch(url);
-            const data: any = await response.json();
-            
-            if (data.status === '1' && data.geocodes && data.geocodes.length > 0) {
-                return data.geocodes[0].location; // Returns "lon,lat"
-            }
-        } catch (e) {
-            console.error('[AmapService] getCoordinates failed:', e);
-        }
-        return null;
+  static async getCoordinates(address: string): Promise<string | null> {
+    if (!this.API_KEY) return null;
+    try {
+      const url = `${this.GEOCODING_API_URL}?address=${encodeURIComponent(address)}&key=${this.API_KEY}`;
+      console.log(`[AmapService] Geo Fetching: ${url}`);
+      const response = await fetch(url);
+      const data: any = await response.json();
+
+      if (data.status === '1' && data.geocodes && data.geocodes.length > 0) {
+        return data.geocodes[0].location; // Returns "lon,lat"
+      }
+    } catch (e) {
+      console.error('[AmapService] getCoordinates failed:', e);
     }
+    return null;
+  }
 
   /**
    * Get Driving Route from Origin to Destination (Driving V3)
@@ -50,34 +50,34 @@ export class AmapService {
     if (!this.API_KEY) return this.getMockRoute(origin, destination);
 
     try {
-        const url = `${this.DRIVING_API_URL}?origin=${origin}&destination=${destination}&key=${this.API_KEY}&extensions=base&strategy=0`; // strategy=0 (speed first)
-        console.log(`[AmapService] Driving Route Fetching: ${url}`);
-        
-        const response = await fetch(url);
-        const data: any = await response.json();
+      const url = `${this.DRIVING_API_URL}?origin=${origin}&destination=${destination}&key=${this.API_KEY}&extensions=base&strategy=0`; // strategy=0 (speed first)
+      console.log(`[AmapService] Driving Route Fetching: ${url}`);
 
-        if (data.status === '1' && data.route && data.route.paths && data.route.paths.length > 0) {
-            const path = data.route.paths[0];
-            return {
-                distance: `${(parseInt(path.distance) / 1000).toFixed(1)}公里`,
-                duration: `${Math.ceil(parseInt(path.duration) / 60)}分钟`,
-                steps: path.steps.map((step: any) => step.instruction).slice(0, 5), // Top 5 steps
-                taxi_cost: data.route.taxi_cost || 'Unknown'
-            };
-        }
+      const response = await fetch(url);
+      const data: any = await response.json();
+
+      if (data.status === '1' && data.route && data.route.paths && data.route.paths.length > 0) {
+        const path = data.route.paths[0];
+        return {
+          distance: `${(parseInt(path.distance) / 1000).toFixed(1)}公里`,
+          duration: `${Math.ceil(parseInt(path.duration) / 60)}分钟`,
+          steps: path.steps.map((step: any) => step.instruction).slice(0, 5), // Top 5 steps
+          taxi_cost: data.route.taxi_cost || 'Unknown'
+        };
+      }
     } catch (e) {
-        console.error('[AmapService] getDrivingRoute failed:', e);
+      console.error('[AmapService] getDrivingRoute failed:', e);
     }
     return this.getMockRoute(origin, destination);
   }
 
   private static getMockRoute(origin: string, destination: string): any {
-      return {
-          distance: "1200公里 (Mock)",
-          duration: "720分钟",
-          steps: ["从起点出发", "沿G2高速行驶", "到达终点"],
-          taxi_cost: "Unknown"
-      };
+    return {
+      distance: "1200公里 (Mock)",
+      duration: "720分钟",
+      steps: ["从起点出发", "沿G2高速行驶", "到达终点"],
+      taxi_cost: "Unknown"
+    };
   }
 
   static async searchPoi(keyword: string, city: string = '上海', location?: string): Promise<PoiItem[]> {
@@ -89,12 +89,12 @@ export class AmapService {
 
       // Explicitly prioritize "nearby" search if location is provided
       // API: v3/place/around (Search Around) vs v3/place/text (Keyword Search)
-      const baseUrl = location 
-        ? 'https://restapi.amap.com/v3/place/around' 
+      const baseUrl = location
+        ? 'https://restapi.amap.com/v3/place/around'
         : 'https://restapi.amap.com/v3/place/text';
 
       let url = `${baseUrl}?key=${this.API_KEY}&keywords=${encodeURIComponent(keyword)}&extensions=all&output=JSON`;
-      
+
       if (location) {
         url += `&location=${location}&radius=3000&sortrule=distance`;
         console.log(`[AmapService] Searching POI Around: ${keyword} @ ${location}`);
@@ -105,12 +105,12 @@ export class AmapService {
 
       const response = await fetch(url);
       if (!response.ok) {
-         throw new Error(`Amap API error: ${response.statusText}`);
+        throw new Error(`Amap API error: ${response.statusText}`);
       }
 
       const data: any = await response.json();
       console.log(`[AmapService] Search Response for ${keyword}:`, JSON.stringify(data).substring(0, 500) + '...'); // Log start of response
-      
+
       if (data.status !== '1') {
         console.error('[AmapService] Search Error:', data.info);
         return this.getMockPois(keyword);
@@ -148,21 +148,21 @@ export class AmapService {
    * Get Adcode for a city name using Geocoding API
    */
   static async getAdcode(city: string): Promise<string | null> {
-      if (!this.API_KEY) return null;
-      
-      try {
-          const url = `${this.GEOCODING_API_URL}?address=${encodeURIComponent(city)}&key=${this.API_KEY}`;
-          console.log(`[AmapService] Geo Fetching: ${url}`);
-          const response = await fetch(url);
-          const data: any = await response.json();
-          
-          if (data.status === '1' && data.geocodes && data.geocodes.length > 0) {
-              return data.geocodes[0].adcode;
-          }
-      } catch (e) {
-          console.error('[AmapService] getAdcode failed:', e);
+    if (!this.API_KEY) return null;
+
+    try {
+      const url = `${this.GEOCODING_API_URL}?address=${encodeURIComponent(city)}&key=${this.API_KEY}`;
+      console.log(`[AmapService] Geo Fetching: ${url}`);
+      const response = await fetch(url);
+      const data: any = await response.json();
+
+      if (data.status === '1' && data.geocodes && data.geocodes.length > 0) {
+        return data.geocodes[0].adcode;
       }
-      return null;
+    } catch (e) {
+      console.error('[AmapService] getAdcode failed:', e);
+    }
+    return null;
   }
 
   /**
@@ -172,163 +172,163 @@ export class AmapService {
    * Get Adcode from Coordinates (lon,lat) using Reverse Geocoding
    */
   static async getAdcodeFromLocation(location: string): Promise<string | null> {
-      if (!this.API_KEY) return null;
-      try {
-          const url = `https://restapi.amap.com/v3/geocode/regeo?location=${location}&key=${this.API_KEY}&extensions=base`;
-          console.log(`[AmapService] ReGeo Fetching: ${url}`);
-          const response = await fetch(url);
-          const data: any = await response.json();
-          
-          if (data.status === '1' && data.regeocode && data.regeocode.addressComponent) {
-              const adcode = data.regeocode.addressComponent.adcode;
-              console.log(`[AmapService] ReGeo Success: ${location} -> ${adcode} (${data.regeocode.formatted_address})`);
-              return adcode;
-          }
-      } catch (e) {
-          console.error('[AmapService] getAdcodeFromLocation failed:', e);
+    if (!this.API_KEY) return null;
+    try {
+      const url = `https://restapi.amap.com/v3/geocode/regeo?location=${location}&key=${this.API_KEY}&extensions=base`;
+      console.log(`[AmapService] ReGeo Fetching: ${url}`);
+      const response = await fetch(url);
+      const data: any = await response.json();
+
+      if (data.status === '1' && data.regeocode && data.regeocode.addressComponent) {
+        const adcode = data.regeocode.addressComponent.adcode;
+        console.log(`[AmapService] ReGeo Success: ${location} -> ${adcode} (${data.regeocode.formatted_address})`);
+        return adcode;
       }
-      return null;
+    } catch (e) {
+      console.error('[AmapService] getAdcodeFromLocation failed:', e);
+    }
+    return null;
   }
 
   /**
    * Get Live Weather for a city (default Shanghai) OR specific location (lon,lat)
    */
   static async getWeather(city: string = 'Shanghai', location?: string): Promise<any> {
-      console.log(`[AmapService] getWeather called for: city=${city}, location=${location}`);
-      if (!this.API_KEY) {
-          console.log('[AmapService] No API Key, returning Mock Weather.');
-          return this.getMockWeather();
+    console.log(`[AmapService] getWeather called for: city=${city}, location=${location}`);
+    if (!this.API_KEY) {
+      console.log('[AmapService] No API Key, returning Mock Weather.');
+      return this.getMockWeather();
+    }
+
+    try {
+      let adcode: string | null = null;
+
+      // 1. Determine Adcode
+      if (location) {
+        adcode = await this.getAdcodeFromLocation(location);
+        if (!adcode) {
+          console.warn(`[AmapService] Failed to get adcode from location ${location}, falling back to city ${city}`);
+        }
       }
 
-      try {
-          let adcode: string | null = null;
+      if (!adcode) {
+        adcode = await this.getAdcode(city);
+      }
 
-          // 1. Determine Adcode
-          if (location) {
-              adcode = await this.getAdcodeFromLocation(location);
-              if (!adcode) {
-                  console.warn(`[AmapService] Failed to get adcode from location ${location}, falling back to city ${city}`);
-              }
-          }
-          
-          if (!adcode) {
-              adcode = await this.getAdcode(city);
-          }
+      if (!adcode) {
+        console.log('[AmapService] Adcode not found via Location or City, returning mock.');
+        return this.getMockWeather();
+      }
 
-          if (!adcode) {
-             console.log('[AmapService] Adcode not found via Location or City, returning mock.');
-             return this.getMockWeather();
-          }
+      // 2. Fetch Live Weather and Forecast in parallel
+      const liveUrl = `${this.WEATHER_API_URL}?city=${adcode}&key=${this.API_KEY}&extensions=base`;
+      const forecastUrl = `${this.WEATHER_API_URL}?city=${adcode}&key=${this.API_KEY}&extensions=all`;
 
-          // 2. Fetch Live Weather and Forecast in parallel
-          const liveUrl = `${this.WEATHER_API_URL}?city=${adcode}&key=${this.API_KEY}&extensions=base`;
-          const forecastUrl = `${this.WEATHER_API_URL}?city=${adcode}&key=${this.API_KEY}&extensions=all`;
-          
-          console.log(`[AmapService] Fetching Weather URLs: ${liveUrl} ...`);
-          
-          const fetchWithTimeout = async (url: string, timeoutMs: number) => {
-              const controller = new AbortController();
-              const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-              try {
-                  const res = await fetch(url, { signal: controller.signal });
-                  clearTimeout(timeoutId);
-                  return res;
-              } catch (err) {
-                  clearTimeout(timeoutId);
-                  throw err;
-              }
+      console.log(`[AmapService] Fetching Weather URLs: ${liveUrl} ...`);
+
+      const fetchWithTimeout = async (url: string, timeoutMs: number) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const res = await fetch(url, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          return res;
+        } catch (err) {
+          clearTimeout(timeoutId);
+          throw err;
+        }
+      };
+
+      const [liveRes, forecastRes] = await Promise.all([
+        fetchWithTimeout(liveUrl, 5000),
+        fetchWithTimeout(forecastUrl, 5000)
+      ]);
+
+      console.log(`[AmapService] Weather API responses received. Status: ${liveRes.status}, ${forecastRes.status}`);
+
+      if (!liveRes.ok || !forecastRes.ok) {
+        console.warn(`[AmapService] One of the weather requests failed.`);
+        return this.getMockWeather();
+      }
+
+      const liveData: any = await liveRes.json();
+      const forecastData: any = await forecastRes.json();
+
+      let result: any = { city: city, date: {}, weather: {} };
+
+      // Process Live Data
+      if (liveData.status === '1' && liveData.lives && liveData.lives.length > 0) {
+        const live = liveData.lives[0];
+        result.city = live.city; // Use API returned city name
+        result.temp = live.temperature; // Current Temp
+        result.cond = live.weather;
+        result.humidity = live.humidity;
+        result.wind = `${live.winddirection}风${live.windpower}级`;
+        result.weather.current = {
+          tempC: live.temperature,
+          text: live.weather,
+          humidity: live.humidity,
+          windDir: live.winddirection,
+          windPower: live.windpower
+        };
+      }
+
+      // Process Forecast Data
+      if (forecastData.status === '1' && forecastData.forecasts && forecastData.forecasts.length > 0) {
+        const casts = forecastData.forecasts[0].casts;
+        result.forecast = casts.map((day: any) => ({
+          date: day.date,
+          day_weather: day.dayweather,
+          night_weather: day.nightweather,
+          high: day.daytemp,
+          low: day.nighttemp,
+          week: ['日', '一', '二', '三', '四', '五', '六'][day.week]
+        }));
+
+        // Fill high/low for today if live data missing it
+        if (result.forecast.length > 0) {
+          result.high = result.forecast[0].high;
+          result.low = result.forecast[0].low;
+          result.date = {
+            year: new Date().getFullYear(),
+            month: new Date().getMonth() + 1,
+            day: new Date().getDate(),
+            weekday: `周${result.forecast[0].week}`
           };
-
-          const [liveRes, forecastRes] = await Promise.all([
-              fetchWithTimeout(liveUrl, 5000),
-              fetchWithTimeout(forecastUrl, 5000)
-          ]);
-              
-          console.log(`[AmapService] Weather API responses received. Status: ${liveRes.status}, ${forecastRes.status}`);
-
-          if (!liveRes.ok || !forecastRes.ok) {
-              console.warn(`[AmapService] One of the weather requests failed.`);
-              return this.getMockWeather();
-          }
-
-          const liveData: any = await liveRes.json();
-          const forecastData: any = await forecastRes.json();
-
-          let result: any = { city: city, date: {}, weather: {} };
-
-          // Process Live Data
-          if (liveData.status === '1' && liveData.lives && liveData.lives.length > 0) {
-                  const live = liveData.lives[0];
-                  result.city = live.city; // Use API returned city name
-                  result.temp = live.temperature; // Current Temp
-                  result.cond = live.weather;
-                  result.humidity = live.humidity;
-                  result.wind = `${live.winddirection}风${live.windpower}级`;
-                  result.weather.current = { 
-                      tempC: live.temperature, 
-                      text: live.weather, 
-                      humidity: live.humidity, 
-                      windDir: live.winddirection, 
-                      windPower: live.windpower 
-                  };
-          }
-
-          // Process Forecast Data
-          if (forecastData.status === '1' && forecastData.forecasts && forecastData.forecasts.length > 0) {
-              const casts = forecastData.forecasts[0].casts;
-              result.forecast = casts.map((day: any) => ({
-                  date: day.date,
-                  day_weather: day.dayweather,
-                  night_weather: day.nightweather,
-                  high: day.daytemp,
-                  low: day.nighttemp,
-                  week: ['日', '一', '二', '三', '四', '五', '六'][day.week]
-              }));
-              
-              // Fill high/low for today if live data missing it
-              if (result.forecast.length > 0) {
-                  result.high = result.forecast[0].high;
-                  result.low = result.forecast[0].low;
-                  result.date = {
-                      year: new Date().getFullYear(),
-                      month: new Date().getMonth() + 1,
-                      day: new Date().getDate(),
-                      weekday: `周${result.forecast[0].week}`
-                  };
-              }
-          }
-          
-          return result;
-
-      } catch (e) {
-          console.error('[AmapService] getWeather failed or timed out:', e);
-          return this.getMockWeather();
+        }
       }
+
+      return result;
+
+    } catch (e) {
+      console.error('[AmapService] getWeather failed or timed out:', e);
+      return this.getMockWeather();
+    }
   }
 
   private static getMockWeather(): any {
-      return {
-            city: "上海(Mock)",
-            date: { year: 2025, month: 12, day: 20, weekday: "周六" },
-            high: "12",
-            low: "5",
-            cond: "多云",
-            extra: "AQI 55 良",
-            weather: {
-                location: { name: "上海" },
-                current: { 
-                    tempC: "12", 
-                    text: "多云", 
-                    humidity: "55", 
-                    windDir: "东北风", 
-                    windPower: "3" 
-                },
-                reportTime: "2025-12-19 16:00"
-            }
-      };
+    return {
+      city: "上海(Mock)",
+      date: { year: 2025, month: 12, day: 20, weekday: "周六" },
+      high: "12",
+      low: "5",
+      cond: "多云",
+      extra: "AQI 55 良",
+      weather: {
+        location: { name: "上海" },
+        current: {
+          tempC: "12",
+          text: "多云",
+          humidity: "55",
+          windDir: "东北风",
+          windPower: "3"
+        },
+        reportTime: "2025-12-19 16:00"
+      }
+    };
   }
 
-  private static getMockPois(keyword: string): PoiItem[] {
+  public static getMockPois(keyword: string): PoiItem[] {
     // Generate context-aware mock data based on simple keywords
     if (keyword.includes('咖啡') || keyword.includes('coffee')) {
       return [
@@ -361,7 +361,7 @@ export class AmapService {
         }
       ];
     }
-    
+
     // Default Generic Mock
     return [
       {
@@ -379,9 +379,9 @@ export class AmapService {
 
   private static getRandomFallbackImage(): string {
     const images = [
-       "https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=400&auto=format&fit=crop",
-       "https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=400&auto=format&fit=crop",
-       "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=400&auto=format&fit=crop"
+      "https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=400&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1497935586351-b67a49e012bf?q=80&w=400&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?q=80&w=400&auto=format&fit=crop"
     ];
     return images[Math.floor(Math.random() * images.length)];
   }

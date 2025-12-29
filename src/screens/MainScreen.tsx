@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import Geolocation from '@react-native-community/geolocation';
 import {
     SafeAreaView,
     View,
@@ -139,29 +140,49 @@ export default function MainScreen({
     // 获取安全区域边距，包含底部导航栏或 Home Indicator
     const insets = useSafeAreaInsets();
 
+
+
+    // ... (existing imports)
+
     const send = async (prompt: string) => {
-        // 发起一次“生成式UI”请求的入口：
-        // 1) 将用户输入写入消息列表
-        // 2) 根据意图（如天气）预取真实业务数据并合并到 dataContext
-        // 3) 通过 AGUIClient 将 prompt 与 dataContext 发送到服务端，等待流式状态与 DSL 返回
         setLoading(true);
         setStatus('thinking');
         setStatusText('');
         setMessages((prev) => [...prev, { role: 'user', content: prompt }]);
+
         try {
+            // 1. Get Location (Best Effort)
+            let locationCoords = null;
+            try {
+                const position = await new Promise<any>((resolve, reject) => {
+                    Geolocation.getCurrentPosition(
+                        (pos) => resolve(pos),
+                        (err) => reject(err),
+                        { enableHighAccuracy: false, timeout: 5000, maximumAge: 10000 }
+                    );
+                });
+                if (position && position.coords) {
+                    locationCoords = `${position.coords.longitude},${position.coords.latitude}`;
+                    console.log('[MainScreen] Location fetched:', locationCoords);
+                }
+            } catch (locationErr) {
+                console.warn('[MainScreen] Location fetch failed:', locationErr);
+            }
+
             let dataContext: any = { title: 'demo' };
+            if (locationCoords) {
+                dataContext.location = locationCoords;
+            }
+
             if (isWeatherIntent(prompt)) {
                 console.log('[MainScreen] 请求真实天气数据 Fetching weather data...')
-                // 若识别为天气意图，先拉取真实天气数据；放入 dataContext 供服务端生成更贴合的数据驱动 UI
                 const weather = await fetchWeatherForPrompt(prompt);
                 if (weather) {
-                    console.log('[MainScreen] Weather data:',);
-                    // setStatusText(JSON.stringify(weather, null, 2));
+                    console.log('[MainScreen] Weather data:', weather);
                     dataContext.weather = weather;
                 }
             }
 
-            // 更新本地 Agent 状态，保证界面具备最新的数据上下文（服务端也会合并）
             const newAgentState = { ...agentState, ...{ dataContext } };
             setAgentState(newAgentState);
             await client.sendMessage(prompt, { dataContext });
@@ -291,7 +312,7 @@ export default function MainScreen({
                                         start={{ x: 0.5, y: -0.3 }} // 渐变起始点
                                         end={{ x: 0.5, y: 2.0 }}   // 渐变结束点
                                         locations={[0, 1]} // 颜色位置
-                                        style={[styles.dslContainer, { opacity: 1, padding: 0 ,  maxWidth: isLandscape() ? '70%' : '80%', maxHeight: "auto"}]}
+                                        style={[styles.dslContainer, { opacity: 1, padding: 0, maxWidth: isLandscape() ? '70%' : '80%', maxHeight: "auto" }]}
                                     >
                                         {/* DSL 内容层：数据上下文来源为 agentState.dataContext；不再使用硬编码示例 */}
                                         {renderComponent(item.dsl, agentState.dataContext || agentState || {}, handleInteraction)}

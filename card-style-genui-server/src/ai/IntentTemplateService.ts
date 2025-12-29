@@ -40,6 +40,10 @@ type Component = {
 3. 不要包含markdown代码块
 4. 使用提供的数据上下文填充UI
 5. 用户明确要求的文本永远覆盖数据上下文
+6. **CONTEXT AWARENESS**:
+   - If "Current UI DSL" is provided, you MUST modify it in-place to reflect the new data/query.
+   - Do NOT change the overall structure or style unless explicitly asked.
+   - Preserving the existing Component ID/Structure ensures a smooth UI update.
 `;
   }
 
@@ -58,6 +62,8 @@ type Component = {
         return this.getRoutePrompt(userQuery, dataContext, currentDsl);
       case IntentType.CARTOON_IMAGE:
         return this.getCartoonImagePrompt(userQuery, dataContext, currentDsl);
+      case IntentType.AC_CONTROL:
+        return this.getAcControlPrompt(userQuery, dataContext, currentDsl);
       case IntentType.CHAT:
         return this.getChatPrompt(userQuery, dataContext, currentDsl);
       default:
@@ -181,7 +187,7 @@ Output:
         "padding": 16, 
         "shape_border_radius": 24,
         "elevation": 4, 
-        "width": "92%",
+        "width": 380,
         "on_click": { "action_type": "open_music_app" }
       },
       "children": [
@@ -266,33 +272,33 @@ Output:
   "children": [
     {
       "component_type": "Column",
-      "properties": { "spacing": 16, "padding": 20 },
+      "properties": { "spacing": 12, "padding": 16, "width": 380 },
       "children": [
          { "component_type": "Text", "properties": { "text": "附近的精选好店", "font_size": 28, "font_weight": "bold", "color": "#2E7D32" } },
          {
            "component_type": "Card",
-           "properties": { "background_color": "#E8F5E9", "elevation": 4, "border_radius": 24, "padding": 20, "width": "100%" },
+           "properties": { "background_color": "#E8F5E9", "elevation": 4, "border_radius": 16, "padding": 8, "width": "100%" },
            "children": [
              {
                "component_type": "Row",
-               "properties": { "spacing": 20, "cross_axis_alignment": "center", "width": "100%" },
+               "properties": { "spacing": 12, "cross_axis_alignment": "center", "width": "100%" },
                "children": [
-                 { "component_type": "Image", "properties": { "source": "http://img.com/1", "width": 120, "height": 120, "border_radius": 16, "content_fit": "cover" } },
+                 { "component_type": "Image", "properties": { "source": "http://img.com/1", "width": 64, "height": 64, "border_radius": 12, "content_fit": "cover" } },
                  {
                    "component_type": "Column",
                    "properties": { "flex": 1, "spacing": 8 },
                    "children": [
-                     { "component_type": "Text", "properties": { "text": "Starbucks Reserve", "font_size": 22, "font_weight": "bold", "color": "#1B5E20" } },
+                     { "component_type": "Text", "properties": { "text": "Starbucks Reserve", "font_size": 18, "font_weight": "bold", "color": "#1B5E20" } },
                      { 
                        "component_type": "Row",
                        "properties": { "spacing": 12, "cross_axis_alignment": "center" },
                        "children": [
-                          { "component_type": "Text", "properties": { "text": "⭐ 4.8", "font_size": 18, "color": "#F57F17", "font_weight": "bold" } },
-                          { "component_type": "Text", "properties": { "text": "¥45/人", "font_size": 18, "color": "#388E3C" } }
+                          { "component_type": "Text", "properties": { "text": "⭐ 4.8", "font_size": 14, "color": "#F57F17", "font_weight": "bold" } },
+                          { "component_type": "Text", "properties": { "text": "¥45/人", "font_size": 14, "color": "#388E3C" } }
                        ]
                      },
                      { "component_type": "Text", "properties": { "text": "营业时间: 07:00-22:00", "font_size": 16, "color": "#558B2F" } },
-                     { "component_type": "Text", "properties": { "text": "123 Main St", "font_size": 16, "color": "#757575", "max_lines": 1 } }
+                     { "component_type": "Text", "properties": { "text": "123 Main St", "font_size": 12, "color": "#757575", "max_lines": 1 } }
                    ]
                  }
                ]
@@ -354,7 +360,7 @@ Output:
              },
              {
                "component_type": "Row",
-               "properties": { "main_axis_alignment": "space_between", "width": "100%" },
+               "properties": { "main_axis_alignment": "center", "spacing": 20, "width": "100%" },
                "children": [
                   { "component_type": "Text", "properties": { "text": "上海市", "font_size": 18, "font_weight": "bold", "color": "#333" } },
                   { "component_type": "Text", "properties": { "text": "➝", "font_size": 18, "color": "#999" } },
@@ -439,7 +445,7 @@ Output:
           "component_type": "Column",
           "properties": { "cross_axis_alignment": "center", "spacing": 16 },
           "children": [
-            { "component_type": "Text", "properties": { "text": "Here is a puppy for you:", "font_size": 20, "font_weight": "bold", "color": "#333333" } },
+            { "component_type": "Text", "properties": { "text": "为您生成的卡通图片:", "font_size": 20, "font_weight": "bold", "color": "#333333" } },
             { 
               "component_type": "Image", 
               "properties": { 
@@ -463,6 +469,93 @@ Output:
 当前DSL: ${currentDsl ? JSON.stringify(currentDsl, null, 2) : "无"}
 
 请根据卡通图片设计指南生成界面。
+`;
+  }
+
+  /**
+   * 空调控制意图的专门模板
+   */
+  private static getAcControlPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
+    return `
+# 空调控制界面设计指南
+
+## 设计风格
+- 使用现代简洁风格
+- 主背景色: '#FFFFFF' (White)
+- 强调色: '#4285F4' (Blue)
+- 字体: 粗体数字显示温度
+
+## 布局结构
+- 标题栏: 左侧"空调控制", 右侧图标(雪花/太阳)
+- 温度调节区: 左侧减号按钮(-), 中间大号温度(24°), 右侧加号按钮(+)
+- 模式选择区: "制冷"、"自动"、"制热"三个按钮一行排列
+- 底部开关: 大号"开启空调"按钮
+- 卡片宽度: **380px** (Strict)
+
+## 示例
+User: "把空调调到24度"
+Output:
+{
+  "component_type": "Center",
+  "properties": { "background_color": "#FFFFFF" },
+  "children": [
+    {
+      "component_type": "Card",
+      "properties": { "background_color": "#FFFFFF", "padding": 24, "shape_border_radius": 24, "elevation": 4, "width": 380 },
+      "children": [
+        {
+          "component_type": "Column",
+          "properties": { "spacing": 24 },
+          "children": [
+             {
+               "component_type": "Row",
+               "properties": { "main_axis_alignment": "space_between", "width": "100%", "cross_axis_alignment": "center" },
+               "children": [
+                 { "component_type": "Text", "properties": { "text": "空调控制", "font_size": 24, "font_weight": "bold", "color": "#333" } },
+                 { "component_type": "Text", "properties": { "text": "❄️", "font_size": 24, "color": "#4285F4" } }
+               ]
+             },
+             {
+               "component_type": "Row",
+               "properties": { "main_axis_alignment": "space_between", "cross_axis_alignment": "center" },
+               "children": [
+                  { 
+                    "component_type": "Button", 
+                    "properties": { "text": "−", "background_color": "#E3F2FD", "text_color": "#1976D2", "font_size": 32, "width": 64, "height": 64, "border_radius": 16, "on_click": { "action_type": "ac_temp_down" } } 
+                  },
+                  { "component_type": "Text", "properties": { "text": "24°", "font_size": 64, "font_weight": "bold", "color": "#212121" } },
+                  { 
+                    "component_type": "Button", 
+                    "properties": { "text": "+", "background_color": "#E3F2FD", "text_color": "#1976D2", "font_size": 32, "width": 64, "height": 64, "border_radius": 16, "on_click": { "action_type": "ac_temp_up" } } 
+                  }
+               ]
+             },
+             {
+               "component_type": "Row",
+               "properties": { "main_axis_alignment": "space_between" },
+               "children": [
+                  { "component_type": "Button", "properties": { "text": "❄️ 制冷", "background_color": "#FFFFFF", "border_color": "#E0E0E0", "border_width": 1, "text_color": "#4285F4", "width": 88, "height": 40, "border_radius": 20 } },
+                  { "component_type": "Button", "properties": { "text": "⚙️ 自动", "background_color": "#E3F2FD", "text_color": "#1976D2", "width": 88, "height": 40, "border_radius": 20 } },
+                  { "component_type": "Button", "properties": { "text": "☀️ 制热", "background_color": "#FFFFFF", "border_color": "#E0E0E0", "border_width": 1, "text_color": "#FF7043", "width": 88, "height": 40, "border_radius": 20 } }
+               ]
+             },
+             {
+               "component_type": "Button",
+               "properties": { "text": "开启空调", "background_color": "#E3F2FD", "text_color": "#4285F4", "font_size": 20, "font_weight": "bold", "width": "100%", "height": 56, "border_radius": 28, "on_click": { "action_type": "ac_toggle" } }
+             }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+# 当前任务
+用户查询: "${userQuery}"
+数据上下文: ${JSON.stringify(dataContext, null, 2)}
+当前DSL: ${currentDsl ? JSON.stringify(currentDsl, null, 2) : "无"}
+
+请根据空调控制设计指南生成界面。
 `;
   }
 

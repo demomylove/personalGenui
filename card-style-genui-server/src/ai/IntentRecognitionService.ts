@@ -7,10 +7,11 @@
 
 export enum IntentType {
     WEATHER = 'weather',
-    MUSIC = 'music', 
+    MUSIC = 'music',
     POI = 'poi',
     ROUTE_PLANNING = 'route_planning',
     CARTOON_IMAGE = 'cartoon_image',
+    AC_CONTROL = 'ac_control',
     CHAT = 'chat',
     UNKNOWN = 'unknown'
 }
@@ -35,7 +36,7 @@ export class IntentRecognitionService {
     static async recognizeIntent(userInput: string): Promise<IntentResult> {
         try {
             const prompt = this.buildIntentRecognitionPrompt(userInput);
-            
+
             const response = await fetch(this.API_ENDPOINT, {
                 method: 'POST',
                 headers: {
@@ -50,7 +51,7 @@ export class IntentRecognitionService {
                             content: "你是一个专业的意图识别助手。请分析用户输入，识别其意图类型，并提取相关实体。请严格按照JSON格式返回结果。"
                         },
                         {
-                            role: "user", 
+                            role: "user",
                             content: prompt
                         }
                     ],
@@ -91,7 +92,8 @@ export class IntentRecognitionService {
 3. poi - POI搜索 (包含"附近"、"查找"、"咖啡"、"餐厅"、"商场"等关键词)
 4. route_planning - 出行规划 (包含"去"、"到"、"导航"、"路线"、"从...到..."等关键词)
 5. cartoon_image - 卡通图片生成 (包含"画"、"生成"、"图片"、"卡通"、"可爱的小狗"等关键词)
-6. chat - 普通聊天 (不包含以上特定意图的日常对话)
+6. ac_control - 空调控制 (包含"空调"、"温度"、"调节"、"制冷"、"制热"等关键词)
+7. chat - 普通聊天 (不包含以上特定意图的日常对话)
 
 请返回JSON格式结果，包含以下字段:
 {
@@ -124,7 +126,7 @@ export class IntentRecognitionService {
      */
     private static normalizeIntentResult(result: any): IntentResult {
         const intent = this.mapToIntentType(result.intent);
-        
+
         return {
             intent,
             confidence: result.confidence || 0.5,
@@ -143,6 +145,7 @@ export class IntentRecognitionService {
             'poi': IntentType.POI,
             'route_planning': IntentType.ROUTE_PLANNING,
             'cartoon_image': IntentType.CARTOON_IMAGE,
+            'ac_control': IntentType.AC_CONTROL,
             'chat': IntentType.CHAT,
             'unknown': IntentType.UNKNOWN
         };
@@ -167,7 +170,7 @@ export class IntentRecognitionService {
      */
     static quickIntentRecognition(userInput: string): IntentResult {
         const lowerInput = userInput.toLowerCase();
-        
+
         // 天气关键词
         if (lowerInput.includes('天气') || lowerInput.includes('气温') || lowerInput.includes('下雨') || lowerInput.includes('晴天')) {
             return {
@@ -215,6 +218,16 @@ export class IntentRecognitionService {
                 confidence: 0.8,
                 extractedEntities: {},
                 reasoning: '关键词匹配：图片生成'
+            };
+        }
+
+        // 空调控制关键词
+        if (lowerInput.includes('空调') || lowerInput.includes('温度') || lowerInput.includes('调节') || lowerInput.includes('制冷') || lowerInput.includes('制热')) {
+            return {
+                intent: IntentType.AC_CONTROL,
+                confidence: 0.8,
+                extractedEntities: {},
+                reasoning: '关键词匹配：空调控制'
             };
         }
 
