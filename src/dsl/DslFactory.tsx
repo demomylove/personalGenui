@@ -8,7 +8,7 @@ import { renderComponent } from './DslRenderer';
  */
 export const DslFactory = {
   // New: auto-detect structured JSON DSL vs legacy string DSL
-  parseAny: async (input: string): Promise<React.ReactNode> => {
+  parseAny: async (input: string, onInteraction?: (action: any) => void): Promise<React.ReactNode> => {
     if (typeof input === 'string') {
       const trimmed = input.trim();
       if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
@@ -16,11 +16,11 @@ export const DslFactory = {
           const obj = JSON.parse(trimmed);
           // Case A: wrapper { component, data }
           if (obj && obj.component && obj.data) {
-            return renderComponent(obj.component, obj.data);
+            return renderComponent(obj.component, obj.data, onInteraction);
           }
           // Case B: direct component JSON
           if (obj && obj.component_type) {
-            return renderComponent(obj, {});
+            return renderComponent(obj, {}, onInteraction);
           }
         } catch (e) {
           console.error('[DslFactory] JSON parse failed', e);

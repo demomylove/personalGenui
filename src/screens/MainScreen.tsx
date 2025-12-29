@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState, useCallback} from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
     SafeAreaView,
     View,
@@ -16,15 +16,15 @@ import {
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
-import {SafeAreaProvider, useSafeAreaInsets} from 'react-native-safe-area-context'; // 需要安装此库
-import {AGUIClient} from '../utils/AGUIClient';
-import {isWeatherIntent, fetchWeatherForPrompt} from '../api/weather';
-import {renderComponent} from '../dsl/DslRenderer';
-import TaskCard, {TaskStatus} from '../components/TaskCard';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'; // 需要安装此库
+import { AGUIClient } from '../utils/AGUIClient';
+import { isWeatherIntent, fetchWeatherForPrompt } from '../api/weather';
+import { renderComponent } from '../dsl/DslRenderer';
+import TaskCard, { TaskStatus } from '../components/TaskCard';
 import VoiceInput from '../components/VoiceInput';
 import RobotIcon from '../components/RobotIcon';
 import UserIcon from '../components/UserIcon';
-import {PermissionStatus} from '../utils/Permissions';
+import { PermissionStatus } from '../utils/Permissions';
 
 // 统一服务器地址（与 GenUITestScreen 保持一致）
 const SERVER_URL = 'http://10.210.0.58:3001/api/chat';
@@ -73,6 +73,20 @@ export default function MainScreen({
     // 处理按钮点击事件（Toast、Navigate 等）
     const handleInteraction = useCallback((action: any) => {
         console.log('[MainScreen] handleInteraction:', action);
+
+        // 兼容处理字符串类型的 action（如 "showAlert('message')"）
+        if (typeof action === 'string') {
+            const match = action.match(/showAlert\(['"](.+)['"]\)/);
+            const msg = match ? match[1] : action;
+
+            if (Platform.OS === 'android') {
+                ToastAndroid.show(msg, ToastAndroid.SHORT);
+            } else {
+                Alert.alert('提示', msg);
+            }
+            return;
+        }
+
         if (!action || !action.action_type) {
             console.warn('[MainScreen] Invalid action object');
             return;
@@ -127,9 +141,9 @@ export default function MainScreen({
         setLoading(true);
         setStatus('thinking');
         setStatusText('');
-        setMessages((prev) => [...prev, {role: 'user', content: prompt}]);
+        setMessages((prev) => [...prev, { role: 'user', content: prompt }]);
         try {
-            let dataContext: any = {title: 'demo'};
+            let dataContext: any = { title: 'demo' };
             if (isWeatherIntent(prompt)) {
                 console.log('[MainScreen] 请求真实天气数据 Fetching weather data...')
                 // 若识别为天气意图，先拉取真实天气数据；放入 dataContext 供服务端生成更贴合的数据驱动 UI
@@ -142,9 +156,9 @@ export default function MainScreen({
             }
 
             // 更新本地 Agent 状态，保证界面具备最新的数据上下文（服务端也会合并）
-            const newAgentState = {...agentState, ...{dataContext}};
+            const newAgentState = { ...agentState, ...{ dataContext } };
             setAgentState(newAgentState);
-            await client.sendMessage(prompt, {dataContext});
+            await client.sendMessage(prompt, { dataContext });
         } catch (e: any) {
             Alert.alert('请求失败', e.message);
             setLoading(false);
@@ -197,7 +211,7 @@ export default function MainScreen({
         if (status === 'completed' && currentDsl) {
             setMessages((prev) => [
                 ...prev,
-                {role: 'assistant', content: '', dsl: currentDsl}
+                { role: 'assistant', content: '', dsl: currentDsl }
             ]);
             setCurrentDsl(null);
             setLoading(false);
@@ -212,7 +226,7 @@ export default function MainScreen({
     useEffect(() => {
         if (messages.length > 0 && flatListRef.current) {
             setTimeout(() => {
-                flatListRef.current?.scrollToEnd({animated: true});
+                flatListRef.current?.scrollToEnd({ animated: true });
             }, 100);
         }
     }, [messages]);
@@ -221,7 +235,7 @@ export default function MainScreen({
     useEffect(() => {
         if (loading && flatListRef.current) {
             setTimeout(() => {
-                flatListRef.current?.scrollToEnd({animated: true});
+                flatListRef.current?.scrollToEnd({ animated: true });
             }, 100);
         }
     }, [loading]);
@@ -233,9 +247,9 @@ export default function MainScreen({
             resizeMode="cover"
         >
             <SafeAreaProvider>
-                <SafeAreaView style={[styles.container, {paddingBottom: insets.bottom}]}>
+                <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
                     <View style={styles.headerRow}>
-                        <Text style={styles.title}>Card Style GenUI</Text>
+                        <Text style={styles.title}>SenseGenUIKit</Text>
                     </View>
 
                     {/* 对话区域：按时间顺序展示用户与助手的消息。
@@ -245,12 +259,12 @@ export default function MainScreen({
                         style={styles.chat}
                         data={messages}
                         keyExtractor={(_, idx) => String(idx)}
-                        renderItem={({item, index}) => (
-                            <View style={[{height: "auto", width: "auto", backgroundColor: "transparent", margin: 10}]}>
+                        renderItem={({ item, index }) => (
+                            <View style={[{ height: "auto", width: "auto", backgroundColor: "transparent", margin: 10 }]}>
                                 {/* 消息气泡与头像：用户在右，助手在左 */}
                                 <View
                                     style={item.role === 'user' ? styles.userMessageContainer : styles.aiMessageContainer}>
-                                    {item.role === 'assistant' && <RobotIcon size={32}/>}
+                                    {item.role === 'assistant' && <RobotIcon size={32} />}
                                     {/* 当 content 非空或角色为 user 时显示文本气泡；助手若仅提供 DSL，可不显示文本 */}
                                     {(item.content.trim() || item.role === 'user') && (
                                         <View
@@ -259,7 +273,7 @@ export default function MainScreen({
                                                 style={[styles.bubbleText, item.role === 'user' && styles.bubbleTextMe]}>{item.content}</Text>
                                         </View>
                                     )}
-                                    {item.role === 'user' && <UserIcon/>}
+                                    {item.role === 'user' && <UserIcon />}
                                 </View>
 
 
@@ -268,10 +282,10 @@ export default function MainScreen({
                                 {item.dsl && (
                                     <LinearGradient
                                         colors={['#F0F4FC00', '#7D47C43D']} // 渐变色数组
-                                        start={{x: 0.5, y: -0.3}} // 渐变起始点
-                                        end={{x: 0.5, y: 1.3}}   // 渐变结束点
+                                        start={{ x: 0.5, y: -0.3 }} // 渐变起始点
+                                        end={{ x: 0.5, y: 1.3 }}   // 渐变结束点
                                         locations={[0, 1]} // 颜色位置
-                                        style={[styles.dslContainer, {opacity: 1, padding: 0}]}
+                                        style={[styles.dslContainer, { opacity: 1, padding: 0 }]}
                                     >
                                         {/* DSL 内容层：数据上下文来源为 agentState.dataContext；不再使用硬编码示例 */}
                                         {renderComponent(item.dsl, agentState.dataContext || agentState || {}, handleInteraction)}
@@ -288,9 +302,9 @@ export default function MainScreen({
                             loading ? (
                                 <View style={styles.loadingContainer}>
                                     <View style={styles.statusContainer}>
-                                        <RobotIcon size={24}/>
+                                        <RobotIcon size={24} />
                                         <View style={styles.statusTextContainer}>
-                                            <TaskCard status={status}/>
+                                            <TaskCard status={status} />
                                             {!!statusText && <Text style={styles.statusText}>{statusText}</Text>}
                                         </View>
                                     </View>
@@ -300,7 +314,7 @@ export default function MainScreen({
 
                         onContentSizeChange={() => {
                             // 当内容大小改变时，滚动到底部
-                            flatListRef.current?.scrollToEnd({animated: true});
+                            flatListRef.current?.scrollToEnd({ animated: true });
                         }}
                     />
 
@@ -461,7 +475,7 @@ const styles = StyleSheet.create({
         zIndex: 2, // 内容层 zIndex 高于背景层
         // 可选：添加轻微阴影，增强层次感
         shadowColor: '#000',
-        shadowOffset: {width: 0, height: 1},
+        shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.1,
         shadowRadius: 2,
     },

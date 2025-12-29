@@ -8,6 +8,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import TaskCard, { TaskStatus } from '../components/TaskCard';
 import { omphalos, weather, music, poi } from '../api/senseClient';
@@ -68,17 +69,17 @@ const ChatScreen = () => {
     // 注意：TouchableOpacity 的 onPress 会传入事件对象，需要忽略
     let text = '';
     if (typeof contentOptional === 'string') {
-        text = contentOptional;
+      text = contentOptional;
     } else {
-        text = inputText;
+      text = inputText;
     }
     text = text.trim();
-    
+
     if (!text) return;
 
     // 检测是否为修改请求
     const isRequestModify = isModificationRequest(text);
-    
+
     // 如果是修改请求但 lastCardMsgId 为空（可能是 Hot Reload 导致状态丢失），尝试从历史消息中找回
     let targetId = lastCardMsgId;
     if (isRequestModify && !targetId) {
@@ -125,14 +126,14 @@ const ChatScreen = () => {
       // Hack: Bypass omphalos for coffee/poi demo to avoid external service latency/failure
       let intentions: any[] = [];
       if (text.includes('咖啡') || text.includes('附近') || text.toLowerCase().includes('coffee') || text.toLowerCase().includes('nearby')) {
-          console.log('Skipping Omphalos for local POI demo');
-          intentions = [{ can_execute: true, domain: 'poi' }];
+        console.log('Skipping Omphalos for local POI demo');
+        intentions = [{ can_execute: true, domain: 'poi' }];
       } else {
-          intentions = await omphalos(text);
+        intentions = await omphalos(text);
       }
-      
+
       updateTaskStatus(taskMsgId, 'thinkingComplete');
-      
+
       // Wait a bit for visual effect
       await new Promise(r => setTimeout(() => r(undefined), 200));
 
@@ -140,12 +141,12 @@ const ChatScreen = () => {
 
       if (intentions && intentions.length > 0) {
         updateTaskStatus(taskMsgId, 'drawing');
-        
+
         for (const intention of intentions) {
           if (intention.can_execute) {
             const domain = intention.domain;
             console.log('Domain:', domain);
-            
+
             if (domain === 'weather') {
               dslString = await weather(text);
             } else if (domain === 'media') {
@@ -161,7 +162,15 @@ const ChatScreen = () => {
 
       if (dslString) {
         // Parse DSL (JSON or Yaml - now supporting JSON directly from parseAny)
-        const widget = await DslFactory.parseAny(dslString);
+        // Define interaction handler for buttons
+        const handleInteraction = (action: any) => {
+          console.log('[ChatScreen] Interaction:', action);
+          // Simple alert for feedback
+          const actionStr = typeof action === 'string' ? action : JSON.stringify(action);
+          Alert.alert('Button Clicked', `Action: ${actionStr}`);
+        };
+
+        const widget = await DslFactory.parseAny(dslString, handleInteraction);
         updateTaskStatus(taskMsgId, 'completed', widget);
         setLastCardMsgId(taskMsgId); // 记住此卡片 ID，供后续修改使用
       } else {
@@ -220,9 +229,9 @@ const ChatScreen = () => {
         style={{ flex: 1 }}
       >
         <View style={styles.header}>
-            <Text style={styles.headerTitle}>SenseGenUIKit</Text>
+          <Text style={styles.headerTitle}>SenseGenUIKit</Text>
         </View>
-        
+
         <FlatList
           data={messages}
           renderItem={renderItem}
@@ -240,7 +249,7 @@ const ChatScreen = () => {
             disabled={loading}
           />
           <TouchableOpacity onPress={handleSend} style={styles.sendButton} disabled={loading}>
-             <Text style={{ opacity: loading ? 0.3 : 1 }}>➡️</Text>
+            <Text style={{ opacity: loading ? 0.3 : 1 }}>➡️</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -250,16 +259,16 @@ const ChatScreen = () => {
 
 const styles = StyleSheet.create({
   header: {
-      height: 50,
-      justifyContent: 'center',
-      alignItems: 'center',
-      backgroundColor: '#FFF',
-      borderBottomWidth: 1,
-      borderBottomColor: '#EEE'
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEE'
   },
   headerTitle: {
-      fontSize: 18,
-      fontWeight: 'bold'
+    fontSize: 18,
+    fontWeight: 'bold'
   },
   userMsgContainer: {
     alignItems: 'flex-end',

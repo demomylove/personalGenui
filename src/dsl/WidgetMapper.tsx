@@ -30,7 +30,7 @@ const NetworkImage: React.FC<NetworkImageProps> = ({
 }) => {
     const [imageError, setImageError] = React.useState(false);
     const imageSource = imageError ? { uri: fallbackSource } : { uri: originalSource };
-    
+
     return (
         <Image
             source={imageSource}
@@ -64,28 +64,17 @@ const ICON_MAP: Record<string, string> = {
 
 // 安卓端友好的颜色映射（适配安卓系统配色规范）
 const COLOR_MAP: Record<string, string | undefined> = {
-    neon: undefined,    // 安卓系统青色 accent
-    gradient: undefined,// 安卓系统深橙色 accent
-    default: undefined, // 安卓系统绿色 accent
-    primary: undefined, // 安卓系统主蓝色
-    secondary: undefined,// 安卓系统次橙色
-    error: undefined,   // 安卓系统错误红色
-    success: undefined, // 安卓系统成功绿色
-    text: undefined,    // 安卓系统主文本色
-    textSecondary: 'rgba(255,255,255,0)', // 安卓系统次要文本色
-    background: 'rgba(255,255,255,0)', // 安卓系统默认背景色
-    card: 'rgba(255,255,255,0)',    // 安卓系统卡片背景色
-    // neon: '#00BCD4',    // 安卓系统青色 accent
-    // gradient: '#FF6E40',// 安卓系统深橙色 accent
-    // default: '#69F0AE', // 安卓系统绿色 accent
-    // primary: '#2196F3', // 安卓系统主蓝色
-    // secondary: '#FF9800',// 安卓系统次橙色
-    // error: '#F44336',   // 安卓系统错误红色
-    // success: '#4CAF50', // 安卓系统成功绿色
-    // text: '#212121',    // 安卓系统主文本色
-    // textSecondary: 'rgba(255,255,255,0)', // 安卓系统次要文本色
-    // background: 'rgba(255,255,255,0)', // 安卓系统默认背景色
-    // card: 'rgba(255,255,255,0)',    // 安卓系统卡片背景色
+    neon: '#00BCD4',    // 安卓系统青色 accent
+    gradient: '#FF6E40',// 安卓系统深橙色 accent
+    default: '#69F0AE', // 安卓系统绿色 accent
+    primary: '#2196F3', // 安卓系统主蓝色
+    secondary: '#FF9800',// 安卓系统次橙色
+    error: '#F44336',   // 安卓系统错误红色
+    success: '#4CAF50', // 安卓系统成功绿色
+    text: '#212121',    // 安卓系统主文本色
+    textSecondary: '#757575', // 安卓系统次要文本色
+    background: '#FFFFFF', // 安卓系统默认背景色
+    card: '#FFFFFF',    // 安卓系统卡片背景色
 };
 
 /**
@@ -109,7 +98,7 @@ export class WidgetMapper {
         dataContext: Record<string, any> = {},
         onInteraction?: (action: any) => void
     ): React.ReactNode {
-      
+
         // 统一转为小写，兼容 DSL 配置大小写不一致问题（安卓端容错优化）
         const componentType = type && type.toLowerCase();
 
@@ -118,8 +107,8 @@ export class WidgetMapper {
             case 'column': {
                 const columnStyle: ViewStyle = {
                     flexDirection: 'column',
-                    alignItems: this.parseCrossAxisAlignment(props.cross_axis_alignment),
-                    justifyContent: this.parseMainAxisAlignment(props.main_axis_alignment),
+                    alignItems: this.parseCrossAxisAlignment(props.cross_axis_alignment || props.crossAxisAlignment),
+                    justifyContent: this.parseMainAxisAlignment(props.main_axis_alignment || props.mainAxisAlignment),
                     padding: this.parsePadding(props.padding),
                     paddingTop: props.padding_top,
                     paddingBottom: props.padding_bottom,
@@ -143,12 +132,13 @@ export class WidgetMapper {
                 );
 
                 // 带点击交互的 Column（安卓端点击反馈优化）
-                if (props.on_click && onInteraction) {
+                const clickAction = props.on_click || props.on_press || props.onPressed;
+                if (clickAction && onInteraction) {
                     return (
                         <TouchableOpacity
                             onPress={() => {
-                                console.log('[Android] Column Pressed:', props.on_click);
-                                onInteraction(props.on_click);
+                                console.log('[Android] Column Pressed:', clickAction);
+                                onInteraction(clickAction);
                             }}
                             activeOpacity={props.active_opacity || 0.8} // 安卓端点击透明度反馈
                             delayPressIn={props.delay_press_in || 0}    // 安卓端点击延迟优化
@@ -166,8 +156,8 @@ export class WidgetMapper {
             case 'row': {
                 const rowStyle: ViewStyle = {
                     flexDirection: 'row',
-                    alignItems: this.parseCrossAxisAlignment(props.cross_axis_alignment),
-                    justifyContent: this.parseMainAxisAlignment(props.main_axis_alignment),
+                    alignItems: this.parseCrossAxisAlignment(props.cross_axis_alignment || props.crossAxisAlignment),
+                    justifyContent: this.parseMainAxisAlignment(props.main_axis_alignment || props.mainAxisAlignment),
                     padding: this.parsePadding(props.padding),
                     paddingTop: props.padding_top,
                     paddingBottom: props.padding_bottom,
@@ -190,12 +180,13 @@ export class WidgetMapper {
                     </View>
                 );
 
-                if (props.on_click && onInteraction) {
+                const clickAction = props.on_click || props.on_press || props.onPressed;
+                if (clickAction && onInteraction) {
                     return (
                         <TouchableOpacity
                             onPress={() => {
-                                console.log('[Android] Row Pressed:', props.on_click);
-                                onInteraction(props.on_click);
+                                console.log('[Android] Row Pressed:', clickAction);
+                                onInteraction(clickAction);
                             }}
                             activeOpacity={props.active_opacity || 0.8}
                             delayPressIn={props.delay_press_in || 0}
@@ -220,8 +211,8 @@ export class WidgetMapper {
                 // 带图标文本
                 if (props.icon) {
                     return (
-                        <View style={{flexDirection: 'row', alignItems: 'center', gap: 4, ...props.wrapper_style}}>
-                            <Text style={{fontSize, color: textColor}}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, ...props.wrapper_style }}>
+                            <Text style={{ fontSize, color: textColor }}>
                                 {ICON_MAP[props.icon] || ICON_MAP.help_outline}
                             </Text>
                             <Text
@@ -351,9 +342,10 @@ export class WidgetMapper {
                 const iconColor = props.color || (props.color_binding ? this.parseBoundColor(props.color_binding, dataContext) : COLOR_MAP.primary);
 
                 const handlePress = () => {
-                    console.log('[Android] Icon Button Pressed:', props.on_click);
-                    if (props.on_click && onInteraction) {
-                        onInteraction(props.on_click);
+                    const action = props.on_click || props.on_press || props.onPressed;
+                    console.log('[Android] Icon Button Pressed:', action);
+                    if (action && onInteraction) {
+                        onInteraction(action);
                     }
                 };
 
@@ -392,7 +384,7 @@ export class WidgetMapper {
                     padding: this.parsePadding(props.padding) || 16,
                     // 兼容安卓低版本阴影
                     shadowColor: '#000',
-                    shadowOffset: {width: 0, height: 2},
+                    shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: props.shadow_opacity || 0.1,
                     shadowRadius: props.shadow_radius || 2,
                     borderWidth: props.border_width || 0,
@@ -407,12 +399,13 @@ export class WidgetMapper {
                     </View>
                 );
 
-                if (props.on_click && onInteraction) {
+                const clickAction = props.on_click || props.on_press || props.onPressed;
+                if (clickAction && onInteraction) {
                     return (
                         <TouchableOpacity
                             onPress={() => {
-                                console.log('[Android] Card Pressed:', props.on_click);
-                                onInteraction(props.on_click);
+                                console.log('[Android] Card Pressed:', clickAction);
+                                onInteraction(clickAction);
                             }}
                             activeOpacity={props.active_opacity || 0.9}
                             delayPressIn={props.delay_press_in || 0}
@@ -430,9 +423,10 @@ export class WidgetMapper {
             // ------------- 按钮组件（基于 TouchableOpacity 原生组件，安卓端按钮规范）-------------
             case 'button': {
                 const handleButtonPress = () => {
-                    console.log('[Android] Button Pressed:', props.on_click);
-                    if (props.on_click && onInteraction) {
-                        onInteraction(props.on_click);
+                    const action = props.on_click || props.on_press || props.onPressed;
+                    console.log('[Android] Button Pressed:', action);
+                    if (action && onInteraction) {
+                        onInteraction(action);
                     }
                 };
 
@@ -462,7 +456,7 @@ export class WidgetMapper {
                     >
                         <Text
                             style={{
-                                color: props.text_color || COLOR_MAP.background,
+                                color: props.text_color || '#FFFFFF',
                                 fontSize: props.font_size || 16,
                                 fontWeight: this.parseFontWeight(props.font_weight || 'bold'),
                                 textAlign: 'center',
@@ -480,7 +474,7 @@ export class WidgetMapper {
                 const sliderValue = this.resolveBinding(props.value_binding, dataContext) || 0;
                 return (
                     <Slider
-                        style={{width: props.width || '100%', height: 40}}
+                        style={{ width: props.width || '100%', height: 40 }}
                         minimumValue={props.min_value || 0}
                         maximumValue={typeof maxValue === 'number' ? maxValue : 100}
                         value={typeof sliderValue === 'number' ? sliderValue : 0}
@@ -489,7 +483,7 @@ export class WidgetMapper {
                         thumbTintColor={props.thumb_color || COLOR_MAP.primary}
                         step={props.step || 1}
                         onValueChange={props.on_value_change && onInteraction ? (value) => {
-                            onInteraction({type: 'slider_change', value});
+                            onInteraction({ type: 'slider_change', value });
                         } : undefined}
                     />
                 );
@@ -512,8 +506,8 @@ export class WidgetMapper {
                             alignItems: props.align_items || 'center',
                             justifyContent: props.justify_content || 'center',
                         }}
-                        start={{x: props.start_x || 0, y: props.start_y || 0}}
-                        end={{x: props.end_x || 1, y: props.end_y || 0}}
+                        start={{ x: props.start_x || 0, y: props.start_y || 0 }}
+                        end={{ x: props.end_x || 1, y: props.end_y || 0 }}
                         locations={props.locations}
                     >
                         {children}
@@ -523,7 +517,7 @@ export class WidgetMapper {
             // ------------- 默认组件（容错处理，避免安卓端渲染崩溃）-------------
             default:
                 console.warn('[Android] 未知组件 Unsupported widget type:', type);
-                const defaultView = <View style={{padding: 4, backgroundColor: '#F5F5F5'}}/>;
+                const defaultView = <View style={{ padding: 4, backgroundColor: '#F5F5F5' }} />;
                 const renderDefault = () => children.length > 0 ? <View>{children}</View> : defaultView;
 
                 if (props.on_click && onInteraction) {
@@ -628,17 +622,17 @@ export class WidgetMapper {
     } {
         switch (s?.toLowerCase()) {
             case 'center':
-                return {alignItems: 'center', justifyContent: 'center'};
+                return { alignItems: 'center', justifyContent: 'center' };
             case 'centerleft':
-                return {alignItems: 'flex-start', justifyContent: 'center'};
+                return { alignItems: 'flex-start', justifyContent: 'center' };
             case 'centerright':
-                return {alignItems: 'flex-end', justifyContent: 'center'};
+                return { alignItems: 'flex-end', justifyContent: 'center' };
             case 'topright':
-                return {alignItems: 'flex-end', justifyContent: 'flex-start'};
+                return { alignItems: 'flex-end', justifyContent: 'flex-start' };
             case 'bottomcenter':
-                return {alignItems: 'center', justifyContent: 'flex-end'};
+                return { alignItems: 'center', justifyContent: 'flex-end' };
             default:
-                return {alignItems: 'flex-start', justifyContent: 'flex-start'};
+                return { alignItems: 'flex-start', justifyContent: 'flex-start' };
         }
     }
 
@@ -725,7 +719,7 @@ export class WidgetMapper {
                     justifyContent: 'center',
                 }}
             >
-                <Text style={{color: COLOR_MAP.textSecondary, fontSize: 12}}>
+                <Text style={{ color: COLOR_MAP.textSecondary, fontSize: 12 }}>
                     {props.placeholder_text || '暂无图片'}
                 </Text>
             </View>
