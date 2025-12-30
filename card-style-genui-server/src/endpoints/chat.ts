@@ -16,13 +16,14 @@ const stateStore = new Map<string, any>();
  * Streams SSE events: TEXT_MESSAGE_*, STATE_DELTA, RUN_FINISHED.
  */
 export const chatHandler = async (req: Request, res: Response) => {
-    // AG-UI Request Body Structure: { input: "query", context: {}, threadId, runId, ... }
+    // AG-UI Request Body Structure: { input: "query", context: {}, threadId, runId, messages: [...], ... }
     const reqBody = req.body || {};
 
     const sessionId = reqBody.threadId || reqBody.sessionId || uuidv4();
     const runId = reqBody.runId || uuidv4();
     const inputMsg = reqBody.input || (reqBody.messages ? reqBody.messages[reqBody.messages.length - 1]?.content : "") || "";
     const clientContext = reqBody.context || reqBody.state?.dataContext || {};
+    const clientMessages = reqBody.messages || []; // 客户端发送的完整对话历史
 
     const startTotal = Date.now();
     console.log(`[Perf] [1. Request Start] New Chat Request: ${new Date().toISOString()} | Session: ${sessionId}`);
@@ -34,6 +35,33 @@ export const chatHandler = async (req: Request, res: Response) => {
     }
     if (clientContext && Object.keys(clientContext).length > 0) {
         serverState.dataContext = { ...(serverState.dataContext || {}), ...clientContext };
+    }
+
+    // 同步客户端的对话历史到服务端
+    // 将客户端的 messages 数组转换为服务端的 ConversationTurn 格式
+    if (clientMessages && clientMessages.length > 0) {
+        console.log(`[Chat] Syncing conversation history from client. Client messages: ${clientMessages.length}, Server history: ${serverState.conversationHistory.length}`);
+        
+        // 将客户端消息转换为服务端格式
+        const clientHistory: ConversationTurn[] = [];
+        for (let i = 0; i < clientMessages.length - 1; i += 2) {
+            const userMsg = clientMessages[i];
+            const assistantMsg = clientMessages[i + 1];
+            
+            if (userMsg?.role === 'user' && userMsg?.content) {
+                clientHistory.push({
+                    query: userMsg.content,
+                    response: assistantMsg?.content || '',
+                    timestamp: Date.now() - (clientMessages.length - i) * 1000 // 估算时间戳
+                });
+            }
+        }
+
+        // 如果客户端历史比服务端长，使用客户端历史
+        if (clientHistory.length > serverState.conversationHistory.length) {
+            serverState.conversationHistory = clientHistory;
+            console.log(`[Chat] Updated server history from client. New length: ${serverState.conversationHistory.length}`);
+        }
     }
 
     // Hydrate DSL from client if server lost it (e.g. restart)
@@ -123,7 +151,14 @@ export const chatHandler = async (req: Request, res: Response) => {
         // Get conversation history for context-aware intent recognition
         const conversationHistory: ConversationTurn[] = serverState.conversationHistory || [];
         console.log(`[Chat] Conversation history length: ${conversationHistory.length}`);
-        console.log(`[Chat] Conversation history:`, JSON.stringify(conversationHistory.map(h => ({ query: h.query, response: h.response.substring(0, 100) }))));
+        if (conversationHistory.length > 0) {
+            console.log(`[Chat] Conversation history:`, JSON.stringify(conversationHistory.map(h => ({
+                query: h.query,
+                response: h.response.substring(0, 100) + (h.response.length > 100 ? '...' : '')
+            }))));
+        } else {
+            console.log(`[Chat] Conversation history is empty - context awareness may be limited`);
+        }
 
         // Keep-alive loop
         const keepAliveInterval = setInterval(() => { res.write(': keep-alive\n\n'); }, 3000);
@@ -278,50 +313,6 @@ export const chatHandler = async (req: Request, res: Response) => {
             }
         }
 
-<<<<<<< HEAD
-=======
-        // 4. Intent Recognition & LLM
-        let currentDsl = serverState.dsl || null;
-
-        // Context Awareness Rule:
-        // 1. If user explicitly says "again", "rewrite", "reset" (重新, 再次), force fresh generation by ignoring currentDsl.
-        // 2. Otherwise, pass currentDsl to allow "in-place editing" (diff update).
-        const resetKeywords = ['重新', '再次', '再生成', 'reset', 'again', 'rewrite', 'retry'];
-        if (resetKeywords.some(kw => inputMsg.includes(kw))) {
-            console.log('[Chat] User requested RESET/RETRY. Ignoring current DSL to force fresh generation.');
-            currentDsl = null;
-        }
-
-        console.log(`[Chat] Starting intent recognition for: "${inputMsg}"`);
-
-        // Get conversation history for context-aware intent recognition
-        const conversationHistory: ConversationTurn[] = serverState.conversationHistory || [];
-        console.log(`[Chat] Conversation history length: ${conversationHistory.length}`);
-        console.log(`[Chat] Conversation history:`, JSON.stringify(conversationHistory.map(h => ({ query: h.query, response: h.response.substring(0, 100) }))));
-
-        // Keep-alive loop
-        const keepAliveInterval = setInterval(() => { res.write(': keep-alive\n\n'); }, 3000);
-
-        let fullResponse: string;
-        let recognizedIntent: any;
-
-        try {
-            // Use the new intent-aware generation with conversation history
-            const result = await LLMService.generateUIWithIntent(inputMsg, contextData, currentDsl, serverState.lastIntent, conversationHistory);
-            fullResponse = result.dsl;
-            recognizedIntent = result.intent;
-
-            // Persist intent for next turn (Sticky Context)
-            if (recognizedIntent && recognizedIntent.intent) {
-                serverState.lastIntent = recognizedIntent.intent;
-                console.log(`[Chat] Saved Intent for next turn: ${serverState.lastIntent}`);
-            }
-
-        } finally {
-            clearInterval(keepAliveInterval);
-        }
-
->>>>>>> 62b6462 (fix(poi): 优化模糊查询关键字提取 (处理'一下'等口语词))
         console.log(`[Chat] [LLM Raw Response]:\n${fullResponse}\n-----------------------------------`);
 
         // 5. Parse DSL & Compute Patch

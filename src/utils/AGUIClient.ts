@@ -38,6 +38,7 @@ export class AGUIClient {
   private currentState: AgentState = {};
   private listeners: Partial<Listener> = {};
   private sessionId: string | null = null;
+  private messages: Message[] = []; // 维护对话历史
 
   constructor(private endpoint: string) { }
 
@@ -51,12 +52,14 @@ export class AGUIClient {
     const stateToSend = { ...this.currentState };
     // delete stateToSend.dsl; // server needs DSL context for stateful modifications
 
+    // 添加用户消息到历史
+    this.messages.push({ role: 'user', content: userMessage });
 
     // Close any previous stream before starting a new one to avoid duplicate listeners
     this.es?.close();
 
     const requestBody = {
-        messages: [{ role: 'user', content: userMessage }],
+        messages: [...this.messages], // 发送完整的对话历史
         state: stateToSend,
         sessionId: this.sessionId,
     };
@@ -96,8 +99,17 @@ export class AGUIClient {
       case 'SESSION_INIT':
         this.sessionId = event.sessionId;
         break;
+      case 'MESSAGE_START':
+        // 消息开始时，添加助手消息到历史
+        this.messages.push({ role: 'assistant', content: '' });
+        break;
       case 'TEXT_MESSAGE_CONTENT':
         this.listeners.onMessageDelta?.((event as any).delta);
+        // 更新最后一条助手消息的内容
+        const lastMsg = this.messages[this.messages.length - 1];
+        if (lastMsg && lastMsg.role === 'assistant') {
+          lastMsg.content += (event as any).delta;
+        }
         break;
       case 'STATE_DELTA':
         // jsonpatch.apply_patch returns the updated document directly. Some servers may send
@@ -136,6 +148,11 @@ export class AGUIClient {
 
   close() {
     this.es?.close();
+  }
+
+  // 重置对话历史（用于新会话）
+  resetHistory() {
+    this.messages = [];
   }
 
   // Minimal JSON patcher that supports add/replace for object paths, creating parents as needed

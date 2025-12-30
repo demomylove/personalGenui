@@ -199,13 +199,14 @@ export class IntentRecognitionService {
         prompt += `- 如果无法确定意图，应识别为 chat 或 unknown\n\n`;
 
         prompt += `### 3. 特殊情况处理\n\n`;
-        prompt += `**关于"卡片"的识别**：\n`;
-        prompt += `- "卡片"是一个通用的UI元素称呼，不是特定意图的标识\n`;
-        prompt += `- 当用户说"将卡片颜色改成绿色"时，需要结合上下文判断：\n`;
+        prompt += `**关于"卡片"和"图片"的识别**：\n`;
+        prompt += `- "卡片"和"图片"都是通用的UI元素称呼，不是特定意图的标识\n`;
+        prompt += `- 当用户说"将卡片/图片颜色改成绿色"、"这张卡片/图片的背景改成淡绿色"时，需要结合上下文判断：\n`;
         prompt += `  - 如果上一轮是 route_planning、poi、weather、music 等明确意图，保持该意图\n`;
         prompt += `  - 如果上一轮是 chat 或 unknown，应识别为 chat\n`;
-        prompt += `- "卡片"可能指代天气卡片、路线卡片、POI卡片、音乐卡片等任何UI组件\n`;
-        prompt += `- 只有当用户明确说"画"、"生成"等动词时，才识别为cartoon_image意图\n\n`;
+        prompt += `- "卡片/图片"可能指代天气卡片、路线卡片、POI卡片、音乐卡片等任何UI组件\n`;
+        prompt += `- **关键规则**：只有当用户明确使用"画"、"生成"、"绘制"等创作动词时，才识别为 cartoon_image 意图\n`;
+        prompt += `- 如果用户说"把...改成"、"将...换成"、"修改..."等修改类动词，不应识别为 cartoon_image，而应基于上下文判断\n\n`;
 
         prompt += `## 返回格式\n\n`;
         prompt += `请返回JSON格式结果：\n`;
@@ -322,22 +323,26 @@ export class IntentRecognitionService {
             };
         }
 
-        // 卡通图片关键词（排除"卡片"相关的修改请求）
-        const hasCardModification = lowerInput.includes('卡片') && (
+        // 卡通图片关键词（排除"卡片"和"图片"相关的修改请求）
+        const hasCardModification = (lowerInput.includes('卡片') || lowerInput.includes('图片')) && (
             lowerInput.includes('改成') || lowerInput.includes('换成') ||
             lowerInput.includes('颜色') || lowerInput.includes('字体') ||
-            lowerInput.includes('大小') || lowerInput.includes('样式')
+            lowerInput.includes('大小') || lowerInput.includes('样式') ||
+            lowerInput.includes('背景') || lowerInput.includes('修改')
         );
         
-        const hasImageGenerationKeywords = (lowerInput.includes('画') || lowerInput.includes('生成')) &&
-                                          (lowerInput.includes('图片') || lowerInput.includes('卡通'));
+        // 必须同时满足：有生成动词 + 有图片关键词 + 没有修改类动词
+        const hasGenerationVerb = lowerInput.includes('画') || lowerInput.includes('生成') || lowerInput.includes('绘制');
+        const hasImageKeyword = lowerInput.includes('图片') || lowerInput.includes('卡通');
+        const hasModificationVerb = lowerInput.includes('改成') || lowerInput.includes('换成') ||
+                                   lowerInput.includes('修改') || lowerInput.includes('调整');
         
-        if (hasImageGenerationKeywords && !hasCardModification) {
+        if (hasGenerationVerb && hasImageKeyword && !hasModificationVerb && !hasCardModification) {
             return {
                 intent: IntentType.CARTOON_IMAGE,
                 confidence: 0.5,
                 extractedEntities: {},
-                reasoning: '关键词匹配（无上下文）：图片生成'
+                reasoning: `关键词匹配（无上下文）：图片生成（动词:${hasGenerationVerb}, 图片:${hasImageKeyword}, 修改:${hasModificationVerb}）`
             };
         }
 
