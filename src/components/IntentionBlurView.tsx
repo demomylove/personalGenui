@@ -13,7 +13,7 @@ export const IntentionTypes = [
     'weather',
     'route_planning',
     'cartoon_image',
-    'ac_control',
+    'car_control',
 ] as const;
 
 // 2. 生成联合类型
@@ -62,7 +62,7 @@ const getGradientConfig = (intention: IntentionType) => {
                 start: {x: 0, y: 0},
                 end: {x: 1, y: 1},
             };
-        case 'ac_control':
+        case 'car_control':
             // 浅橙色渐变
             return {
                 colors: ['rgba(255, 165, 0, 0.4)', 'rgba(255, 165, 0, 0.3)'],

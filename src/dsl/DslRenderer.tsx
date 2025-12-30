@@ -1,5 +1,8 @@
 import React from 'react';
-import { WidgetMapper } from './WidgetMapper';
+import {WidgetMapper} from './WidgetMapper';
+import AirConditioningCard from "../components/AirConditioningCard.tsx";
+import SeatControlCard from "../components/SeatControlCard.tsx";
+import WindowControlCard from "../components/WindowControlCard.tsx";
 
 /**
  * 根据组件类型定义和数据上下文渲染组件。
@@ -8,149 +11,165 @@ import { WidgetMapper } from './WidgetMapper';
  * @returns React 节点
  */
 export const renderComponent = (component: any, data: any, onInteraction?: (action: any) => void): React.ReactNode => {
-  const type = component.component_type;
-  const properties = component.properties || {};
-  const children = component.children || [];
+    const type = component.component_type;
+    const properties = component.properties || {};
+    const children = component.children || [];
 
-  if (type !== 'Text' && type !== 'SizedBox' && type !== 'Spacer' && type !== 'Padding' && type !== 'Align') {
-      console.log('[DslRenderer] Rendering:', type, 'Props:', JSON.stringify(properties || {}));
-  }
+    if (type !== 'Text' && type !== 'SizedBox' && type !== 'Spacer' && type !== 'Padding' && type !== 'Align') {
+        console.log('[DslRenderer] Rendering:', type, 'Props:', JSON.stringify(properties || {}));
+    }
+    if (type === 'car_control_ac') {
+        //空调本地卡片
+        return <AirConditioningCard></AirConditioningCard>
 
-  // Special handling for Loop
-  // Iterates over an array in 'data' and renders children for each item
-  if (type === 'Loop') {
-      const itemsKey = properties.items?.replace(/{{|}}/g, '').trim();
-      const itemAlias = properties.item_alias;
-      const separator = properties.separator;
-      
-      const items = resolvePath(itemsKey, data);
-      
-      if (Array.isArray(items)) {
-          const loopChildren: React.ReactNode[] = [];
-          items.forEach((item, index) => {
-             // Render actual children of the Loop component for EACH item
-             // But we need to inject the alias into data context
-             const itemContext = { ...data, [itemAlias]: item };
-             
-             children.forEach((childTemplate: any, childIndex: number) => {
-                 const childNode = renderComponent(childTemplate, itemContext, onInteraction);
-                 if (childNode) {
-                     if (React.isValidElement(childNode)) {
-                        // Assign unique key to help React reconciliation
-                        loopChildren.push(React.cloneElement(childNode, { key: `${index}-${childIndex}` }));
-                     } else {
-                        loopChildren.push(childNode);
-                     }
-                 }
-             });
+    }
 
-             // Separator logic: add a SizedBox between items
-             if (separator && index < items.length - 1) {
-                 loopChildren.push(WidgetMapper.buildWidget('SizedBox', { height: separator }, [], itemContext));
-             }
-          });
-          
-          return (
-              <React.Fragment>
-                  {loopChildren}
-              </React.Fragment>
-          );
-      }
-      return null;
-  }
+    if (type === 'car_control_seat') {
+        //座椅本地卡片
+        return <SeatControlCard></SeatControlCard>
+    }
+
+    if (type === 'car_control_window') {
+        //座椅本地卡片
+        return <WindowControlCard></WindowControlCard>
+    }
 
 
-  // Resolve properties: Replace {{binding}} with actual values
-  const resolvedProps: any = {};
-  Object.keys(properties).forEach((key) => {
-    resolvedProps[key] = resolveValue(properties[key], data);
-  });
+    // Special handling for Loop
+    // Iterates over an array in 'data' and renders children for each item
+    if (type === 'Loop') {
+        const itemsKey = properties.items?.replace(/{{|}}/g, '').trim();
+        const itemAlias = properties.item_alias;
+        const separator = properties.separator;
 
-  // Recursively render children
-  const childrenArray = Array.isArray(children) ? children : [];
-  const childWidgets = childrenArray.map((child: any, index: number) => {
-     // Add key to children
-     const childNode = renderComponent(child, data, onInteraction);
-     if (React.isValidElement(childNode)) {
-        return React.cloneElement(childNode, { key: index });
-     }
-     return childNode;
-  });
+        const items = resolvePath(itemsKey, data);
 
-  return WidgetMapper.buildWidget(type, resolvedProps, childWidgets, data, onInteraction);
+        if (Array.isArray(items)) {
+            const loopChildren: React.ReactNode[] = [];
+            items.forEach((item, index) => {
+                // Render actual children of the Loop component for EACH item
+                // But we need to inject the alias into data context
+                const itemContext = {...data, [itemAlias]: item};
+
+                children.forEach((childTemplate: any, childIndex: number) => {
+                    const childNode = renderComponent(childTemplate, itemContext, onInteraction);
+                    if (childNode) {
+                        if (React.isValidElement(childNode)) {
+                            // Assign unique key to help React reconciliation
+                            loopChildren.push(React.cloneElement(childNode, {key: `${index}-${childIndex}`}));
+                        } else {
+                            loopChildren.push(childNode);
+                        }
+                    }
+                });
+
+                // Separator logic: add a SizedBox between items
+                if (separator && index < items.length - 1) {
+                    loopChildren.push(WidgetMapper.buildWidget('SizedBox', {height: separator}, [], itemContext));
+                }
+            });
+
+            return (
+                <React.Fragment>
+                    {loopChildren}
+                </React.Fragment>
+            );
+        }
+        return null;
+    }
+
+
+    // Resolve properties: Replace {{binding}} with actual values
+    const resolvedProps: any = {};
+    Object.keys(properties).forEach((key) => {
+        resolvedProps[key] = resolveValue(properties[key], data);
+    });
+
+    // Recursively render children
+    const childrenArray = Array.isArray(children) ? children : [];
+    const childWidgets = childrenArray.map((child: any, index: number) => {
+        // Add key to children
+        const childNode = renderComponent(child, data, onInteraction);
+        if (React.isValidElement(childNode)) {
+            return React.cloneElement(childNode, {key: index});
+        }
+        return childNode;
+    });
+
+    return WidgetMapper.buildWidget(type, resolvedProps, childWidgets, data, onInteraction);
 };
 
 /**
  * 解析可能包含类似 handlebars 语法 {{key}} 的字符串值
  */
 const resolveValue = (value: any, data: any): any => {
-  if (typeof value === 'string') {
-    // 1. Handle {{ }} syntax
-    if (value.includes('{{') && value.includes('}}')) {
-      const reg = /{{(.*?)}}/g;
-      return value.replace(reg, (match, key) => {
-          let cleanKey = key.trim();
-          let padLen = 0;
-          let padChar = ' ';
-          
-          if (cleanKey.includes('|')) {
-              const parts = cleanKey.split('|');
-              cleanKey = parts[0].trim();
-              const pipe = parts[1].trim();
-              if (pipe.startsWith('padLeft')) {
-                  const args = pipe.match(/padLeft\((\d+),\s*'(.)'\)/);
-                  if (args) {
-                      padLen = parseInt(args[1]);
-                      padChar = args[2];
-                  }
-              }
-          }
+    if (typeof value === 'string') {
+        // 1. Handle {{ }} syntax
+        if (value.includes('{{') && value.includes('}}')) {
+            const reg = /{{(.*?)}}/g;
+            return value.replace(reg, (match, key) => {
+                let cleanKey = key.trim();
+                let padLen = 0;
+                let padChar = ' ';
 
-          const val = resolvePath(cleanKey, data);
-          let str = val !== undefined && val !== null ? String(val) : '';
-          if (padLen > 0) {
-              str = str.padStart(padLen, padChar);
-          }
-          return str;
-      });
+                if (cleanKey.includes('|')) {
+                    const parts = cleanKey.split('|');
+                    cleanKey = parts[0].trim();
+                    const pipe = parts[1].trim();
+                    if (pipe.startsWith('padLeft')) {
+                        const args = pipe.match(/padLeft\((\d+),\s*'(.)'\)/);
+                        if (args) {
+                            padLen = parseInt(args[1]);
+                            padChar = args[2];
+                        }
+                    }
+                }
+
+                const val = resolvePath(cleanKey, data);
+                let str = val !== undefined && val !== null ? String(val) : '';
+                if (padLen > 0) {
+                    str = str.padStart(padLen, padChar);
+                }
+                return str;
+            });
+        }
+
+        // 2. Handle ${ } syntax
+        if (value.includes('${') && value.includes('}')) {
+            const reg = /\$\{(.*?)\}/g;
+            return value.replace(reg, (match, key) => {
+                // Strip optional "data." prefix if it doesn't match at root
+                const val = resolvePath(key.trim(), data);
+                return val !== undefined && val !== null ? String(val) : '';
+            });
+        }
     }
-    
-    // 2. Handle ${ } syntax
-    if (value.includes('${') && value.includes('}')) {
-       const reg = /\$\{(.*?)\}/g;
-       return value.replace(reg, (match, key) => {
-           // Strip optional "data." prefix if it doesn't match at root
-           const val = resolvePath(key.trim(), data);
-           return val !== undefined && val !== null ? String(val) : '';
-       });
-    }
-  }
-  return value;
+    return value;
 };
 
 const resolvePath = (key: string, data: any): any => {
-  const getVal = (path: string, source: any) => {
-      const segments = path.split('.');
-      let current = source;
-      for (const seg of segments) {
-        if (current && typeof current === 'object' && seg in current) {
-          current = current[seg];
-        } else {
-          return undefined;
+    const getVal = (path: string, source: any) => {
+        const segments = path.split('.');
+        let current = source;
+        for (const seg of segments) {
+            if (current && typeof current === 'object' && seg in current) {
+                current = current[seg];
+            } else {
+                return undefined;
+            }
         }
-      }
-      return current;
-  };
-  
-  // Try exact match
-  let result = getVal(key, data);
-  if (result !== undefined) return result;
-  
-  // Try stripping "data." prefix if present
-  if (key.startsWith('data.')) {
-      result = getVal(key.substring(5), data);
-      if (result !== undefined) return result;
-  }
-  
-  return undefined;
+        return current;
+    };
+
+    // Try exact match
+    let result = getVal(key, data);
+    if (result !== undefined) return result;
+
+    // Try stripping "data." prefix if present
+    if (key.startsWith('data.')) {
+        result = getVal(key.substring(5), data);
+        if (result !== undefined) return result;
+    }
+
+    return undefined;
 };

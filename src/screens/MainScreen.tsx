@@ -221,6 +221,7 @@ export default function MainScreen({
                 console.log('[MainScreen] State Update:', JSON.stringify(newState.dataContext || {}));
                 setAgentState(newState);
                 if (newState.dsl) {
+                    console.log('[MainScreen] State Update dsl:', JSON.stringify(newState.dsl || {}));
                     // 当状态中出现 dsl（界面结构描述），进入绘制阶段
                     setCurrentDsl(newState.dsl);
                     setStatus('drawing');
