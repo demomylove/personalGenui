@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, {useEffect, useRef, useState, useCallback} from 'react';
 import Geolocation from '@react-native-community/geolocation';
 import {
     SafeAreaView,
@@ -13,19 +13,22 @@ import {
     Dimensions,
     ToastAndroid,
     ImageBackground,
-    NativeModules
+    NativeModules,
+    Image
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context'; // 需要安装此库
-import { AGUIClient } from '../utils/AGUIClient';
-import { isWeatherIntent, fetchWeatherForPrompt } from '../api/weather';
-import { renderComponent } from '../dsl/DslRenderer';
-import TaskCard, { TaskStatus } from '../components/TaskCard';
+import {SafeAreaProvider, useSafeAreaInsets} from 'react-native-safe-area-context'; // 需要安装此库
+import {AGUIClient} from '../utils/AGUIClient';
+import {isWeatherIntent, fetchWeatherForPrompt} from '../api/weather';
+import {renderComponent} from '../dsl/DslRenderer';
+import TaskCard, {TaskStatus} from '../components/TaskCard';
 import VoiceInput from '../components/VoiceInput';
 import RobotIcon from '../components/RobotIcon';
 import UserIcon from '../components/UserIcon';
-import { PermissionStatus } from '../utils/Permissions';
+import {PermissionStatus} from '../utils/Permissions';
+import {BlurView} from "@react-native-community/blur";
+import IntentionBlurView, {IntentionType, IntentionTypes} from "../components/IntentionBlurView.tsx";
 
 // 统一服务器地址（与 GenUITestScreen 保持一致）
 const SERVER_URL = 'http://10.210.0.58:3001/api/chat';
@@ -55,13 +58,15 @@ interface MainScreenProps {
     onPermissionRequest?: () => Promise<PermissionStatus>;
 }
 
+
 export default function MainScreen({
-    initialPermissionStatus = null,
-    onPermissionRequest
-}: MainScreenProps) {
+                                       initialPermissionStatus = null,
+                                       onPermissionRequest
+                                   }: MainScreenProps) {
     const client = useRef(new AGUIClient(SERVER_URL)).current;
     const flatListRef = useRef<FlatList>(null);
     const [status, setStatus] = useState<TaskStatus>('thinking');
+    const [intention, setIntention] = useState<IntentionType>('chat');
     const [statusText, setStatusText] = useState('');
     const [currentDsl, setCurrentDsl] = useState<any>(null);
     const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string; dsl?: any }>>([]);
@@ -72,10 +77,9 @@ export default function MainScreen({
     const [agentState, setAgentState] = useState<any>({});
     const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
     const isLandscape = () => {
-        const { width, height } = Dimensions.get('window');
+        const {width, height} = Dimensions.get('window');
         return width > height;
     };
-
 
     // 处理按钮点击事件（Toast、Navigate 等）
     const handleInteraction = useCallback((action: any) => {
@@ -141,14 +145,14 @@ export default function MainScreen({
     const insets = useSafeAreaInsets();
 
 
-
     // ... (existing imports)
 
     const send = async (prompt: string) => {
         setLoading(true);
         setStatus('thinking');
         setStatusText('');
-        setMessages((prev) => [...prev, { role: 'user', content: prompt }]);
+        setIntention('chat')
+        setMessages((prev) => [...prev, {role: 'user', content: prompt}]);
 
         try {
             // 1. Get Location (Best Effort)
@@ -156,9 +160,9 @@ export default function MainScreen({
             try {
                 const position = await new Promise<any>((resolve, reject) => {
                     Geolocation.getCurrentPosition(
-                        (pos) => resolve(pos),
-                        (err) => reject(err),
-                        { enableHighAccuracy: false, timeout: 5000, maximumAge: 10000 }
+                        (pos: any) => resolve(pos),
+                        (err: any) => reject(err),
+                        {enableHighAccuracy: false, timeout: 5000, maximumAge: 10000}
                     );
                 });
                 if (position && position.coords) {
@@ -169,7 +173,7 @@ export default function MainScreen({
                 console.warn('[MainScreen] Location fetch failed:', locationErr);
             }
 
-            let dataContext: any = { title: 'demo' };
+            let dataContext: any = {title: 'demo'};
             if (locationCoords) {
                 dataContext.location = locationCoords;
             }
@@ -183,9 +187,9 @@ export default function MainScreen({
                 }
             }
 
-            const newAgentState = { ...agentState, ...{ dataContext } };
+            const newAgentState = {...agentState, ...{dataContext}};
             setAgentState(newAgentState);
-            await client.sendMessage(prompt, { dataContext });
+            await client.sendMessage(prompt, {dataContext});
         } catch (e: any) {
             Alert.alert('请求失败', e.message);
             setLoading(false);
@@ -197,6 +201,19 @@ export default function MainScreen({
             onMessageDelta: (delta) => {
                 // 文本思考增量（LLM 的 streaming 输出），用于展示助手思考过程提示
                 setStatusText((prev) => prev + delta);
+                // 遍历意图类型数组，查找匹配的意图
+                let foundIntent = false;
+                for (const intent of IntentionTypes) {
+                    if (statusText.toLowerCase().includes(intent)) {
+                        setIntention(intent);
+                        foundIntent = true;
+                        break; // 找到匹配的意图后立即退出循环
+                    }
+                }
+                if (!foundIntent) {
+                    setIntention('chat');
+                }
+
             },
             onStateUpdate: (newState) => {
                 // 服务端通过流式“状态补丁”推送最新 Agent 状态（含 dataContext、dsl 等）
@@ -222,6 +239,7 @@ export default function MainScreen({
                 setLoading(false);
             },
             onDone: () => {
+
                 // 流式会话完成：进入 completed 态
                 setStatus('completed');
             },
@@ -238,7 +256,7 @@ export default function MainScreen({
         if (status === 'completed' && currentDsl) {
             setMessages((prev) => [
                 ...prev,
-                { role: 'assistant', content: '', dsl: currentDsl }
+                {role: 'assistant', content: '', dsl: currentDsl}
             ]);
             setCurrentDsl(null);
             setLoading(false);
@@ -253,7 +271,7 @@ export default function MainScreen({
     useEffect(() => {
         if (messages.length > 0 && flatListRef.current) {
             setTimeout(() => {
-                flatListRef.current?.scrollToEnd({ animated: true });
+                flatListRef.current?.scrollToEnd({animated: true});
             }, 100);
         }
     }, [messages]);
@@ -262,19 +280,19 @@ export default function MainScreen({
     useEffect(() => {
         if (loading && flatListRef.current) {
             setTimeout(() => {
-                flatListRef.current?.scrollToEnd({ animated: true });
+                flatListRef.current?.scrollToEnd({animated: true});
             }, 100);
         }
     }, [loading]);
 
     return (
         <ImageBackground
-            source={require('../assets/ag_ui_bg.png')}
+            source={isLandscape() ? require('../assets/ag_ui_bg.png') : require('../assets/ag_ui_bg_portrait.png')}
             style={styles.backgroundImage}
             resizeMode="cover"
         >
             <SafeAreaProvider>
-                <SafeAreaView style={[styles.container, { paddingBottom: insets.bottom }]}>
+                <SafeAreaView style={[styles.container, {paddingBottom: insets.bottom}]}>
                     <View style={styles.headerRow}>
                         <Text style={styles.title}>SenseGenUIKit</Text>
                     </View>
@@ -286,12 +304,12 @@ export default function MainScreen({
                         style={styles.chat}
                         data={messages}
                         keyExtractor={(_, idx) => String(idx)}
-                        renderItem={({ item, index }) => (
-                            <View style={[{ height: "auto", width: "auto", backgroundColor: "transparent", margin: 10 }]}>
+                        renderItem={({item, index}) => (
+                            <View style={[{height: "auto", width: "auto", backgroundColor: "transparent", margin: 10}]}>
                                 {/* 消息气泡与头像：用户在右，助手在左 */}
                                 <View
                                     style={item.role === 'user' ? styles.userMessageContainer : styles.aiMessageContainer}>
-                                    {item.role === 'assistant' && <RobotIcon size={32} />}
+                                    {item.role === 'assistant' && <RobotIcon size={32}/>}
                                     {/* 当 content 非空或角色为 user 时显示文本气泡；助手若仅提供 DSL，可不显示文本 */}
                                     {(item.content.trim() || item.role === 'user') && (
                                         <View
@@ -300,19 +318,25 @@ export default function MainScreen({
                                                 style={[styles.bubbleText, item.role === 'user' && styles.bubbleTextMe]}>{item.content}</Text>
                                         </View>
                                     )}
-                                    {item.role === 'user' && <UserIcon />}
+                                    {item.role === 'user' && <UserIcon/>}
                                 </View>
-
-
+                                {/*
+                          使用 IntentionBlurView 组件
+                        */}
                                 {/* 若该消息包含 DSL：使用 renderComponent 结合 agentState.dataContext 渲染实际组件，
                                     实现“数据绑定 + 界面结构”驱动的生成式 UI。 */}
                                 {item.dsl && (
                                     <LinearGradient
-                                        colors={['#F0F4FC00', '#7D47C43D']} // 渐变色数组
-                                        start={{ x: 0.5, y: -0.3 }} // 渐变起始点
-                                        end={{ x: 0.5, y: 2.0 }}   // 渐变结束点
+                                        colors={['#F0F4FC00', 'rgba(125,71,196,0)']} // 渐变色数组
+                                        start={{x: 0.5, y: -0.3}} // 渐变起始点
+                                        end={{x: 0.5, y: 2.0}}   // 渐变结束点
                                         locations={[0, 1]} // 颜色位置
-                                        style={[styles.dslContainer, { opacity: 1, padding: 0, maxWidth: isLandscape() ? '70%' : '80%', maxHeight: "auto" }]}
+                                        style={[styles.dslContainer, {
+                                            opacity: 1,
+                                            padding: 0,
+                                            maxWidth: isLandscape() ? '70%' : '80%',
+                                            maxHeight: "auto"
+                                        }]}
                                     >
                                         {/* DSL 内容层：数据上下文来源为 agentState.dataContext；不再使用硬编码示例 */}
                                         {renderComponent(item.dsl, agentState.dataContext || agentState || {}, handleInteraction)}
@@ -328,20 +352,29 @@ export default function MainScreen({
                         ListFooterComponent={
                             loading ? (
                                 <View style={styles.loadingContainer}>
+
                                     <View style={styles.statusContainer}>
-                                        <RobotIcon size={24} />
+                                        <RobotIcon size={24}/>
                                         <View style={styles.statusTextContainer}>
-                                            <TaskCard status={status} />
-                                            {!!statusText && <Text style={styles.statusText}>{statusText}</Text>}
+                                            <TaskCard status={status}/>
+                                            <Text style={styles.statusText}>{statusText}</Text>
+                                            {/*使用 IntentionBlurView 组件*/}
+                                            <IntentionBlurView intention={intention}>
+                                                <TaskCard status={status}/>
+                                                <Text style={styles.statusText}>{statusText}</Text>
+                                            </IntentionBlurView>
+
                                         </View>
+
                                     </View>
+
                                 </View>
                             ) : null
                         }
 
                         onContentSizeChange={() => {
                             // 当内容大小改变时，滚动到底部
-                            flatListRef.current?.scrollToEnd({ animated: true });
+                            flatListRef.current?.scrollToEnd({animated: true});
                         }}
                     />
 
@@ -502,7 +535,7 @@ const styles = StyleSheet.create({
         zIndex: 2, // 内容层 zIndex 高于背景层
         // 可选：添加轻微阴影，增强层次感
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: {width: 0, height: 1},
         shadowOpacity: 0.1,
         shadowRadius: 2,
     },
@@ -575,5 +608,77 @@ const styles = StyleSheet.create({
         flex: 1, // 占据整个屏幕
         width: '100%',
         height: '100%',
+
     },
+
+
+    // 思考状态下的毛玻璃容器
+    thinkingCardContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        borderRadius: 12,
+        marginLeft: 40, // 与机器人图标对齐
+        marginRight: 16,
+        marginVertical: 4,
+        // 关键：允许子元素的背景模糊效果应用到父元素的背景上
+        overflow: 'hidden',
+    },
+
+    // 天气意图的毛玻璃样式
+    thinkingCardWeather: {
+        backgroundColor: 'rgba(173, 216, 230, 0.2)', // 浅蓝色，低透明度
+        // 关键：背景模糊效果
+        // @ts-ignore: react-native-reanimated type issue
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)', // 兼容 iOS
+    },
+
+    // 音乐意图的毛玻璃样式
+    thinkingCardMusic: {
+        backgroundColor: 'rgba(255, 192, 203, 0.2)', // 浅粉色，低透明度
+        // @ts-ignore: react-native-reanimated type issue
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+    },
+
+    // POI意图的毛玻璃样式
+    thinkingCardPoi: {
+        backgroundColor: 'rgba(144, 238, 144, 0.2)', // 浅绿色，低透明度
+        // @ts-ignore: react-native-reanimated type issue
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+    },
+
+    // 路线规划意图的毛玻璃样式
+    thinkingCardRoute: {
+        backgroundColor: 'rgba(255, 215, 0, 0.2)', // 浅黄色，低透明度
+        // @ts-ignore: react-native-reanimated type issue
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+    },
+
+    // 默认/聊天意图的毛玻璃样式
+    thinkingCardDefault: {
+        backgroundColor: 'rgba(255, 255, 255, 0.2)', // 白色，低透明度
+        // @ts-ignore: react-native-reanimated type issue
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+    },
+
+    // 思考卡片内的文本样式
+    thinkingCardText: {
+        color: '#333',
+        fontSize: 14,
+        fontWeight: '500',
+        marginLeft: 8,
+    },
+    footerIcon: {
+        width: 350,
+        height: 300,
+        marginHorizontal: 8,
+        resizeMode: 'contain',
+        tintColor: '#555', // 可以调整图标颜色
+    },
+
 });
