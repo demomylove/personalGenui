@@ -94,12 +94,9 @@ export const chatHandler = async (req: Request, res: Response) => {
 
         sendText("Thinking...");
 
-        // 3. Logic & Context Enrichment (POI/Weather)
+        // 3. Setup Context Data
         const lowerMsg = inputMsg.toLowerCase();
         let additionalInstruction = "";
-
-        // Hardcoded user location as requested (Centralized)
-        // const USER_LOCATION = '121.399641,31.168876'; 
 
         // Ensure dataContext exists
         if (!serverState.dataContext) serverState.dataContext = {};
@@ -109,29 +106,76 @@ export const chatHandler = async (req: Request, res: Response) => {
         const USER_LOCATION = contextData.location || '121.399641,31.168876'; // Fallback to Shanghai if missing
         console.log(`[Chat] Using User Location: ${USER_LOCATION}`);
 
+        // 4. Intent Recognition & LLM
+        let currentDsl = serverState.dsl || null;
+
+        // Context Awareness Rule:
+        // 1. If user explicitly says "again", "rewrite", "reset" (重新, 再次), force fresh generation by ignoring currentDsl.
+        // 2. Otherwise, pass currentDsl to allow "in-place editing" (diff update).
+        const resetKeywords = ['重新', '再次', '再生成', 'reset', 'again', 'rewrite', 'retry'];
+        if (resetKeywords.some(kw => inputMsg.includes(kw))) {
+            console.log('[Chat] User requested RESET/RETRY. Ignoring current DSL to force fresh generation.');
+            currentDsl = null;
+        }
+
+        console.log(`[Chat] Starting intent recognition for: "${inputMsg}"`);
+        
+        // Get conversation history for context-aware intent recognition
+        const conversationHistory: ConversationTurn[] = serverState.conversationHistory || [];
+        console.log(`[Chat] Conversation history length: ${conversationHistory.length}`);
+        console.log(`[Chat] Conversation history:`, JSON.stringify(conversationHistory.map(h => ({ query: h.query, response: h.response.substring(0, 100) }))));
+        
+        // Keep-alive loop
+        const keepAliveInterval = setInterval(() => { res.write(': keep-alive\n\n'); }, 3000);
+        
+        let fullResponse: string;
+        let recognizedIntent: any;
+        
+        try {
+            // Use new intent-aware generation with conversation history
+            const result = await LLMService.generateUIWithIntent(inputMsg, contextData, currentDsl, serverState.lastIntent, conversationHistory);
+            fullResponse = result.dsl;
+            recognizedIntent = result.intent;
+            
+            // Use extracted keyword from intent recognition if available
+            if (recognizedIntent.extractedKeyword) {
+                console.log(`[Chat] Using extracted keyword from intent recognition: "${recognizedIntent.extractedKeyword}"`);
+            }
+            
+            // Persist intent for next turn (Sticky Context)
+            if (recognizedIntent && recognizedIntent.intent) {
+                serverState.lastIntent = recognizedIntent.intent;
+                console.log(`[Chat] Saved Intent for next turn: ${serverState.lastIntent}`);
+            }
+
+        } finally {
+            clearInterval(keepAliveInterval);
+        }
+
+        // 5. Logic & Context Enrichment (POI/Weather/Route) - AFTER intent recognition
+        // Now we can use the recognizedIntent to guide data fetching
+        
         // --- POI Logic ---
-        if (lowerMsg.includes('咖啡') || lowerMsg.includes('coffee') || lowerMsg.includes('cafe') || lowerMsg.includes('附近')) {
+        // Use extractedKeyword from intent recognition if available, otherwise use original input
+        let poiKeyword = recognizedIntent.extractedKeyword || inputMsg;
+        if (lowerMsg.includes('咖啡') || lowerMsg.includes('coffee') || lowerMsg.includes('cafe') ||
+            lowerMsg.includes('附近') || lowerMsg.includes('餐厅') || lowerMsg.includes('商场') ||
+            recognizedIntent.intent === 'poi') {
             sendText("\n(Searching nearby POIs...)");
             try {
-                let keyword = '咖啡';
-                // Simple keyword extraction
-                const cleanMsg = inputMsg.replace(/附近|的|查找|搜索|查看|有没有|推荐|我想去|帮我找/g, '').replace(/ting$/i, '').trim();
-                if (cleanMsg.length > 0) {
-                    keyword = cleanMsg;
-                }
-                console.log(`[Chat] POI Search Keyword extracted: "${keyword}" (Original: "${inputMsg}")`);
+                console.log(`[Chat] POI Search: using keyword: "${poiKeyword}" (Original: "${inputMsg}")`);
 
                 // Use USER_LOCATION for "around" search
-                let pois = await AmapService.searchPoi(keyword, 'Shanghai', USER_LOCATION);
+                let pois = await AmapService.searchPoi(poiKeyword, 'Shanghai', USER_LOCATION);
 
                 if (pois.length === 0) {
                     console.warn('[Chat] No real POIs found. Falling back to Mock Data.');
-                    pois = AmapService.getMockPois(keyword);
+                    pois = AmapService.getMockPois(poiKeyword);
                 }
 
                 if (pois.length > 0) {
                     contextData.pois = pois;
-                    additionalInstruction += "\nIMPORTANT: POI data detected. Render a vertical list of cards (using Column) according to the 'POI List' example.";
+                    additionalInstruction += "\nIMPORTANT: POI data detected. Render a vertical list of cards (using Column) according to 'POI List' example.";
                 }
             } catch (err) {
                 console.error("POI Search failed", err);
@@ -139,7 +183,7 @@ export const chatHandler = async (req: Request, res: Response) => {
         }
 
         // --- Weather Logic ---
-        const isWeather = lowerMsg.includes('天气') || lowerMsg.includes('weather') || lowerMsg.includes('气温');
+        const isWeather = lowerMsg.includes('天气') || lowerMsg.includes('weather') || lowerMsg.includes('气温') || recognizedIntent.intent === 'weather';
         if (isWeather) {
             let city = 'Shanghai'; // Default context city name (fallback)
             if (inputMsg.includes('北京')) city = 'Beijing';
@@ -150,21 +194,6 @@ export const chatHandler = async (req: Request, res: Response) => {
             sendText("\n(Fetching weather data...)");
 
             try {
-                // Pass USER_LOCATION to utilize ReGeo if possible. 
-                // Note: If user specific asks for "Beijing Weather", passing USER_LOCATION (Shanghai) might be wrong?
-                // User request: "weather查询时，也带上" (When querying weather, also include coords).
-                // Logic: If user specifically mentions a city, we should arguably prioritize that city.
-                // But if generic "Weather", use coords.
-                // Currently AmapService.getWeather logic: 1. check location -> regeo -> adcode. 2. if fail, check city -> adcode.
-                // So if we pass location, it will PRIORITIZE location.
-                // Modification: If user explicitly mentions a DIFFERENT city, we probably shouldn't pass USER_LOCATION?
-                // But user said "查询时也带上". Let's assume for current location weather or default checks.
-                // If user says "Beijing Weather", the intent is Beijing. The USER_LOCATION is Shanghai.
-                // If I pass USER_LOCATION, it will render Shanghai weather.
-                // Refinement: Only pass USER_LOCATION if no specific city detected OR if "nearby/here" implied.
-                // For now, adhering to instruction "weather查询时，也带上", I will pass it. 
-                // Maybe the user assumes "Weather" means "My Weather".
-
                 const weatherData = await AmapService.getWeather(city, USER_LOCATION);
                 contextData.weather = weatherData;
             } catch (e) {
@@ -173,7 +202,8 @@ export const chatHandler = async (req: Request, res: Response) => {
         }
 
         // --- Driving Route Logic ---
-        const isRoute = lowerMsg.includes('去') || lowerMsg.includes('到') || lowerMsg.includes('导航') || lowerMsg.includes('route') || lowerMsg.includes('drive');
+        const isRoute = lowerMsg.includes('去') || lowerMsg.includes('到') || lowerMsg.includes('导航') ||
+                        lowerMsg.includes('route') || lowerMsg.includes('drive') || recognizedIntent.intent === 'route_planning';
         if (isRoute) {
             // Regex to extract "From [A] To [B]" pattern
             const routeRegex = /(?:从|from)\s*([^到\s]+)\s*(?:到|to|去)\s*([^的\s]+)/i;
@@ -186,7 +216,7 @@ export const chatHandler = async (req: Request, res: Response) => {
                 origin = matchRoute[1]; // If user says "From X", use X
                 dest = matchRoute[2];
             } else {
-                // Try to find reasonable destination from message? 
+                // Try to find reasonable destination from message?
                 // "Go to X", "Drive to X"
                 // Simple split?
                 // e.g. "去外滩"
@@ -235,47 +265,6 @@ export const chatHandler = async (req: Request, res: Response) => {
             } catch (e) {
                 console.error("Route Planning failed", e);
             }
-        }
-
-        // 4. Intent Recognition & LLM
-        let currentDsl = serverState.dsl || null;
-
-        // Context Awareness Rule:
-        // 1. If user explicitly says "again", "rewrite", "reset" (重新, 再次), force fresh generation by ignoring currentDsl.
-        // 2. Otherwise, pass currentDsl to allow "in-place editing" (diff update).
-        const resetKeywords = ['重新', '再次', '再生成', 'reset', 'again', 'rewrite', 'retry'];
-        if (resetKeywords.some(kw => inputMsg.includes(kw))) {
-            console.log('[Chat] User requested RESET/RETRY. Ignoring current DSL to force fresh generation.');
-            currentDsl = null;
-        }
-
-        console.log(`[Chat] Starting intent recognition for: "${inputMsg}"`);
-        
-        // Get conversation history for context-aware intent recognition
-        const conversationHistory: ConversationTurn[] = serverState.conversationHistory || [];
-        console.log(`[Chat] Conversation history length: ${conversationHistory.length}`);
-        console.log(`[Chat] Conversation history:`, JSON.stringify(conversationHistory.map(h => ({ query: h.query, response: h.response.substring(0, 100) }))));
-        
-        // Keep-alive loop
-        const keepAliveInterval = setInterval(() => { res.write(': keep-alive\n\n'); }, 3000);
-        
-        let fullResponse: string;
-        let recognizedIntent: any;
-        
-        try {
-            // Use the new intent-aware generation with conversation history
-            const result = await LLMService.generateUIWithIntent(inputMsg, contextData, currentDsl, serverState.lastIntent, conversationHistory);
-            fullResponse = result.dsl;
-            recognizedIntent = result.intent;
-            
-            // Persist intent for next turn (Sticky Context)
-            if (recognizedIntent && recognizedIntent.intent) {
-                serverState.lastIntent = recognizedIntent.intent;
-                console.log(`[Chat] Saved Intent for next turn: ${serverState.lastIntent}`);
-            }
-
-        } finally {
-            clearInterval(keepAliveInterval);
         }
 
         console.log(`[Chat] [LLM Raw Response]:\n${fullResponse}\n-----------------------------------`);
@@ -333,10 +322,10 @@ export const chatHandler = async (req: Request, res: Response) => {
         });
 
         // Save conversation history for context-aware intent recognition
-        // Extract the assistant's response from the DSL
+        // Extract the assistant's response from DSL
         let assistantResponse = fullResponse;
         if (dslObject) {
-            // Try to extract a meaningful response from the DSL
+            // Try to extract a meaningful response from DSL
             assistantResponse = JSON.stringify(dslObject);
         }
         
@@ -414,7 +403,7 @@ export const chatOnceHandler = async (req: Request, res: Response) => {
         }
 
         const currentDsl = serverState.dsl || null;
-        // Use intent-aware generation with conversation history for the once handler as well
+        // Use intent-aware generation with conversation history for once handler as well
         const result = await LLMService.generateUIWithIntent(
             lastUserMessage,
             serverState.dataContext || {},

@@ -1,7 +1,7 @@
 /**
  * IntentRecognitionService.ts
- * 
- * 负责识别用户输入的意图类型，支持天气、音乐、POI、出行规划、卡通图片、聊天等类型
+ *
+ * 负责识别用户输入的意图类型，支持天气、音乐、POI、出行规划、卡通图片、车控、聊天等类型
  * 使用千问大模型进行意图识别，完全基于上下文语义分析
  */
 
@@ -11,7 +11,7 @@ export enum IntentType {
     POI = 'poi',
     ROUTE_PLANNING = 'route_planning',
     CARTOON_IMAGE = 'cartoon_image',
-    AC_CONTROL = 'ac_control',
+    CAR_CONTROL = 'car_control',
     CHAT = 'chat',
     UNKNOWN = 'unknown'
 }
@@ -21,6 +21,14 @@ export interface IntentResult {
     confidence: number;
     extractedEntities?: Record<string, any>;
     reasoning?: string;
+    /**
+     * 提取的关键字（如 POI 关键词、城市名等）
+     */
+    extractedKeyword?: string;
+    /**
+     * 车控子类型（当 intent 为 car_control 时使用）
+     */
+    carControlSubType?: 'ac' | 'window' | 'seat' | 'light' | 'general';
 }
 
 /**
@@ -156,8 +164,16 @@ export class IntentRecognitionService {
         prompt += `3. **poi** - 地点搜索、查找附近的设施相关的意图\n`;
         prompt += `4. **route_planning** - 路线规划、导航相关的意图\n`;
         prompt += `5. **cartoon_image** - 生成、绘制图片相关的意图\n`;
-        prompt += `6. **ac_control** - 空调控制相关的意图\n`;
+        prompt += `6. **car_control** - 车控相关的意图（包括空调、车窗、座椅、灯光等车辆控制）\n`;
         prompt += `7. **chat** - 普通聊天对话\n\n`;
+
+        prompt += `## 车控子类型定义（当意图为 car_control 时）\n\n`;
+        prompt += `当识别为车控意图时，请进一步识别具体的控制类型：\n\n`;
+        prompt += `- **ac** - 空调控制（关键词：空调、温度、制冷、制热、调节温度）\n`;
+        prompt += `- **window** - 车窗控制（关键词：车窗、打开车窗、关闭车窗、降下车窗、升起车窗）\n`;
+        prompt += `- **seat** - 座椅控制（关键词：座椅、调节座椅、座椅加热、座椅通风）\n`;
+        prompt += `- **light** - 灯光控制（关键词：灯光、车灯、开灯、关灯、大灯、雾灯）\n`;
+        prompt += `- **general** - 通用车控（无法确定具体类型时使用）\n\n`;
 
         prompt += `## 意图识别策略\n\n`;
         prompt += `### 1. 判断是否延续上一轮话题\n\n`;
@@ -194,15 +210,17 @@ export class IntentRecognitionService {
         prompt += `## 返回格式\n\n`;
         prompt += `请返回JSON格式结果：\n`;
         prompt += `{\n`;
-        prompt += `  "intent": "意图类型 (weather/music/poi/route_planning/cartoon_image/ac_control/chat/unknown)",\n`;
+        prompt += `  "intent": "意图类型 (weather/music/poi/route_planning/cartoon_image/car_control/chat/unknown)",\n`;
         prompt += `  "confidence": 0.0-1.0之间的置信度分数,\n`;
         prompt += `  "extractedEntities": {\n`;
         prompt += `    "city": "城市名 (如果适用)",\n`;
-        prompt += `    "keyword": "搜索关键词 (如果适用)",\n`;
+        prompt += `    "keyword": "搜索关键词 (如果适用，如POI搜索的'咖啡厅')",\n`;
         prompt += `    "origin": "出发地 (如果适用)", \n`;
         prompt += `    "destination": "目的地 (如果适用)",\n`;
         prompt += `    "description": "图片描述 (如果适用)"\n`;
         prompt += `  },\n`;
+        prompt += `  "extractedKeyword": "从用户输入中提取的关键字 (如POI关键词、城市名等)",\n`;
+        prompt += `  "carControlSubType": "车控子类型 (ac/window/seat/light/general，仅当intent为car_control时)",\n`;
         prompt += `  "reasoning": "详细的识别理由，说明如何基于上下文进行分析"\n`;
         prompt += `}\n\n`;
 
@@ -219,7 +237,9 @@ export class IntentRecognitionService {
             intent,
             confidence: result.confidence || 0.5,
             extractedEntities: result.extractedEntities || {},
-            reasoning: result.reasoning || ''
+            reasoning: result.reasoning || '',
+            extractedKeyword: result.extractedKeyword || '',
+            carControlSubType: result.carControlSubType
         };
     }
 
@@ -233,7 +253,7 @@ export class IntentRecognitionService {
             'poi': IntentType.POI,
             'route_planning': IntentType.ROUTE_PLANNING,
             'cartoon_image': IntentType.CARTOON_IMAGE,
-            'ac_control': IntentType.AC_CONTROL,
+            'car_control': IntentType.CAR_CONTROL,
             'chat': IntentType.CHAT,
             'unknown': IntentType.UNKNOWN
         };
@@ -321,13 +341,32 @@ export class IntentRecognitionService {
             };
         }
 
-        // 空调控制关键词
-        if (lowerInput.includes('空调') || lowerInput.includes('温度') || lowerInput.includes('调节') || lowerInput.includes('制冷') || lowerInput.includes('制热')) {
+        // 车控关键词（包括空调、车窗、座椅、灯光等车辆控制）
+        let carControlSubType: 'ac' | 'window' | 'seat' | 'light' | 'general' = 'general';
+        
+        if (lowerInput.includes('空调') || lowerInput.includes('温度') || lowerInput.includes('制冷') || lowerInput.includes('制热')) {
+            carControlSubType = 'ac';
+        } else if (lowerInput.includes('车窗') || lowerInput.includes('打开车窗') || lowerInput.includes('关闭车窗') ||
+                   lowerInput.includes('降下车窗') || lowerInput.includes('升起车窗')) {
+            carControlSubType = 'window';
+        } else if (lowerInput.includes('座椅') || lowerInput.includes('调节座椅') || lowerInput.includes('座椅加热') ||
+                   lowerInput.includes('座椅通风')) {
+            carControlSubType = 'seat';
+        } else if (lowerInput.includes('灯光') || lowerInput.includes('车灯') || lowerInput.includes('开灯') ||
+                   lowerInput.includes('关灯') || lowerInput.includes('大灯') || lowerInput.includes('雾灯')) {
+            carControlSubType = 'light';
+        }
+
+        if (lowerInput.includes('空调') || lowerInput.includes('温度') || lowerInput.includes('调节') || lowerInput.includes('制冷') || lowerInput.includes('制热') ||
+            lowerInput.includes('车窗') || lowerInput.includes('座椅') || lowerInput.includes('灯光') || lowerInput.includes('车控') ||
+            lowerInput.includes('打开车窗') || lowerInput.includes('关闭车窗') || lowerInput.includes('调节座椅') ||
+            lowerInput.includes('开灯') || lowerInput.includes('关灯')) {
             return {
-                intent: IntentType.AC_CONTROL,
+                intent: IntentType.CAR_CONTROL,
                 confidence: 0.5,
                 extractedEntities: {},
-                reasoning: '关键词匹配（无上下文）：空调控制'
+                carControlSubType: carControlSubType,
+                reasoning: `关键词匹配（无上下文）：车控相关 (${carControlSubType})`
             };
         }
 

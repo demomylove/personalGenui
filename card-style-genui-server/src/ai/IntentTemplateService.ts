@@ -14,7 +14,7 @@ export class IntentTemplateService {
    */
   static getIntentSpecificPrompt(intent: IntentResult, userQuery: string, dataContext: any, currentDsl?: any): string {
     const basePrompt = this.getBasePrompt();
-    const intentSpecificPrompt = this.getIntentPrompt(intent.intent, userQuery, dataContext, currentDsl);
+    const intentSpecificPrompt = this.getIntentPrompt(intent.intent, userQuery, dataContext, currentDsl, intent);
 
     return basePrompt + intentSpecificPrompt;
   }
@@ -50,7 +50,7 @@ type Component = {
   /**
    * 根据意图类型获取专门的提示词
    */
-  private static getIntentPrompt(intent: IntentType, userQuery: string, dataContext: any, currentDsl?: any): string {
+  private static getIntentPrompt(intent: IntentType, userQuery: string, dataContext: any, currentDsl?: any, intentResult?: IntentResult): string {
     switch (intent) {
       case IntentType.WEATHER:
         return this.getWeatherPrompt(userQuery, dataContext, currentDsl);
@@ -62,8 +62,8 @@ type Component = {
         return this.getRoutePrompt(userQuery, dataContext, currentDsl);
       case IntentType.CARTOON_IMAGE:
         return this.getCartoonImagePrompt(userQuery, dataContext, currentDsl);
-      case IntentType.AC_CONTROL:
-        return this.getAcControlPrompt(userQuery, dataContext, currentDsl);
+      case IntentType.CAR_CONTROL:
+        return this.getCarControlPrompt(userQuery, dataContext, currentDsl, intentResult?.carControlSubType);
       case IntentType.CHAT:
         return this.getChatPrompt(userQuery, dataContext, currentDsl);
       default:
@@ -473,7 +473,28 @@ Output:
   }
 
   /**
-   * 空调控制意图的专门模板
+   * 车控意图的专门模板（根据子类型选择具体模板）
+   */
+  private static getCarControlPrompt(userQuery: string, dataContext: any, currentDsl?: any, carControlSubType?: 'ac' | 'window' | 'seat' | 'light' | 'general'): string {
+    // 使用传入的车控子类型，默认为 general
+    const subType = carControlSubType || dataContext?.carControlSubType || 'general';
+    
+    switch (subType) {
+      case 'ac':
+        return this.getAcControlPrompt(userQuery, dataContext, currentDsl);
+      case 'window':
+        return this.getWindowControlPrompt(userQuery, dataContext, currentDsl);
+      case 'seat':
+        return this.getSeatControlPrompt(userQuery, dataContext, currentDsl);
+      case 'light':
+        return this.getLightControlPrompt(userQuery, dataContext, currentDsl);
+      default:
+        return this.getGeneralCarControlPrompt(userQuery, dataContext, currentDsl);
+    }
+  }
+
+  /**
+   * 空调控制模板
    */
   private static getAcControlPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
     return `
@@ -519,25 +540,25 @@ Output:
                "component_type": "Row",
                "properties": { "main_axis_alignment": "space_between", "cross_axis_alignment": "center" },
                "children": [
-                  { 
-                    "component_type": "Button", 
-                    "properties": { "text": "−", "background_color": "#E3F2FD", "text_color": "#1976D2", "font_size": 32, "width": 64, "height": 64, "border_radius": 16, "on_click": { "action_type": "ac_temp_down" } } 
-                  },
-                  { "component_type": "Text", "properties": { "text": "24°", "font_size": 64, "font_weight": "bold", "color": "#212121" } },
-                  { 
-                    "component_type": "Button", 
-                    "properties": { "text": "+", "background_color": "#E3F2FD", "text_color": "#1976D2", "font_size": 32, "width": 64, "height": 64, "border_radius": 16, "on_click": { "action_type": "ac_temp_up" } } 
-                  }
-               ]
+                   {
+                     "component_type": "Button",
+                     "properties": { "text": "−", "background_color": "#E3F2FD", "text_color": "#1976D2", "font_size": 32, "width": 64, "height": 64, "border_radius": 16, "on_click": { "action_type": "ac_temp_down" } }
+                   },
+                   { "component_type": "Text", "properties": { "text": "24°", "font_size": 64, "font_weight": "bold", "color": "#212121" } },
+                   {
+                     "component_type": "Button",
+                     "properties": { "text": "+", "background_color": "#E3F2FD", "text_color": "#1976D2", "font_size": 32, "width": 64, "height": 64, "border_radius": 16, "on_click": { "action_type": "ac_temp_up" } }
+                   }
+                ]
              },
              {
                "component_type": "Row",
                "properties": { "main_axis_alignment": "space_between" },
                "children": [
-                  { "component_type": "Button", "properties": { "text": "❄️ 制冷", "background_color": "#FFFFFF", "border_color": "#E0E0E0", "border_width": 1, "text_color": "#4285F4", "width": 88, "height": 40, "border_radius": 20 } },
-                  { "component_type": "Button", "properties": { "text": "⚙️ 自动", "background_color": "#E3F2FD", "text_color": "#1976D2", "width": 88, "height": 40, "border_radius": 20 } },
-                  { "component_type": "Button", "properties": { "text": "☀️ 制热", "background_color": "#FFFFFF", "border_color": "#E0E0E0", "border_width": 1, "text_color": "#FF7043", "width": 88, "height": 40, "border_radius": 20 } }
-               ]
+                   { "component_type": "Button", "properties": { "text": "❄️ 制冷", "background_color": "#FFFFFF", "border_color": "#E0E0E0", "border_width": 1, "text_color": "#4285F4", "width": 88, "height": 40, "border_radius": 20 } },
+                   { "component_type": "Button", "properties": { "text": "⚙️ 自动", "background_color": "#E3F2FD", "text_color": "#1976D2", "width": 88, "height": 40, "border_radius": 20 } },
+                   { "component_type": "Button", "properties": { "text": "☀️ 制热", "background_color": "#FFFFFF", "border_color": "#E0E0E0", "border_width": 1, "text_color": "#FF7043", "width": 88, "height": 40, "border_radius": 20 } }
+                ]
              },
              {
                "component_type": "Button",
@@ -556,6 +577,342 @@ Output:
 当前DSL: ${currentDsl ? JSON.stringify(currentDsl, null, 2) : "无"}
 
 请根据空调控制设计指南生成界面。
+`;
+  }
+
+  /**
+   * 通用车控模板
+   */
+  private static getGeneralCarControlPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
+    return `
+# 通用车控界面设计指南
+
+## 设计风格
+- 使用现代简洁风格
+- 主背景色: '#FFFFFF' (White)
+- 强调色: '#4285F4' (Blue)
+
+## 布局结构
+- 标题栏: 左侧"车控", 右侧图标(🚗)
+- 控制项列表: 网格布局展示各种车控功能
+- 卡片宽度: **380px** (Strict)
+
+## 示例
+User: "打开车控"
+Output:
+{
+  "component_type": "Center",
+  "properties": { "background_color": "#FFFFFF" },
+  "children": [
+    {
+      "component_type": "Card",
+      "properties": { "background_color": "#FFFFFF", "padding": 24, "shape_border_radius": 24, "elevation": 4, "width": 380 },
+      "children": [
+        {
+          "component_type": "Column",
+          "properties": { "spacing": 20 },
+          "children": [
+             {
+               "component_type": "Row",
+               "properties": { "main_axis_alignment": "space_between", "width": "100%", "cross_axis_alignment": "center" },
+               "children": [
+                 { "component_type": "Text", "properties": { "text": "车控", "font_size": 24, "font_weight": "bold", "color": "#333" } },
+                 { "component_type": "Text", "properties": { "text": "🚗", "font_size": 24, "color": "#4285F4" } }
+               ]
+             },
+             {
+               "component_type": "Column",
+               "properties": { "spacing": 12 },
+               "children": [
+                  {
+                    "component_type": "Button",
+                    "properties": { "text": "❄️ 空调控制", "background_color": "#E3F2FD", "text_color": "#1976D2", "font_size": 16, "width": "100%", "height": 48, "border_radius": 12, "on_click": { "action_type": "ac_control" } }
+                  },
+                  {
+                    "component_type": "Button",
+                    "properties": { "text": "🪟 车窗控制", "background_color": "#E8F5E9", "text_color": "#2E7D32", "font_size": 16, "width": "100%", "height": 48, "border_radius": 12, "on_click": { "action_type": "window_control" } }
+                  },
+                  {
+                    "component_type": "Button",
+                    "properties": { "text": "💺 座椅控制", "background_color": "#FFF3E0", "text_color": "#E65100", "font_size": 16, "width": "100%", "height": 48, "border_radius": 12, "on_click": { "action_type": "seat_control" } }
+                  },
+                  {
+                    "component_type": "Button",
+                    "properties": { "text": "💡 灯光控制", "background_color": "#FFF9C4", "text_color": "#F57F17", "font_size": 16, "width": "100%", "height": 48, "border_radius": 12, "on_click": { "action_type": "light_control" } }
+                  }
+               ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+# 当前任务
+用户查询: "${userQuery}"
+数据上下文: ${JSON.stringify(dataContext, null, 2)}
+当前DSL: ${currentDsl ? JSON.stringify(currentDsl, null, 2) : "无"}
+
+请根据通用车控设计指南生成界面。
+`;
+  }
+
+  /**
+   * 车窗控制模板
+   */
+  private static getWindowControlPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
+    return `
+# 车窗控制界面设计指南
+
+## 设计风格
+- 使用现代简洁风格
+- 主背景色: '#FFFFFF' (White)
+- 强调色: '#2E7D32' (Green)
+
+## 布局结构
+- 标题栏: 左侧"车窗控制", 右侧图标(🪟)
+- 车窗位置选择: 前左、前右、后左、后右
+- 控制按钮: 打开、关闭、一键升降
+- 卡片宽度: **380px** (Strict)
+
+## 示例
+User: "打开车窗"
+Output:
+{
+  "component_type": "Center",
+  "properties": { "background_color": "#FFFFFF" },
+  "children": [
+    {
+      "component_type": "Card",
+      "properties": { "background_color": "#FFFFFF", "padding": 24, "shape_border_radius": 24, "elevation": 4, "width": 380 },
+      "children": [
+        {
+          "component_type": "Column",
+          "properties": { "spacing": 20 },
+          "children": [
+             {
+               "component_type": "Row",
+               "properties": { "main_axis_alignment": "space_between", "width": "100%", "cross_axis_alignment": "center" },
+               "children": [
+                 { "component_type": "Text", "properties": { "text": "车窗控制", "font_size": 24, "font_weight": "bold", "color": "#333" } },
+                 { "component_type": "Text", "properties": { "text": "🪟", "font_size": 24, "color": "#2E7D32" } }
+               ]
+             },
+             {
+               "component_type": "Column",
+               "properties": { "spacing": 12 },
+               "children": [
+                  {
+                    "component_type": "Row",
+                    "properties": { "main_axis_alignment": "space_between" },
+                    "children": [
+                       { "component_type": "Button", "properties": { "text": "前左", "background_color": "#E8F5E9", "text_color": "#2E7D32", "width": 88, "height": 40, "border_radius": 12 } },
+                       { "component_type": "Button", "properties": { "text": "前右", "background_color": "#E8F5E9", "text_color": "#2E7D32", "width": 88, "height": 40, "border_radius": 12 } },
+                       { "component_type": "Button", "properties": { "text": "后左", "background_color": "#E8F5E9", "text_color": "#2E7D32", "width": 88, "height": 40, "border_radius": 12 } },
+                       { "component_type": "Button", "properties": { "text": "后右", "background_color": "#E8F5E9", "text_color": "#2E7D32", "width": 88, "height": 40, "border_radius": 12 } }
+                    ]
+                  },
+                  {
+                    "component_type": "Row",
+                    "properties": { "main_axis_alignment": "space_between" },
+                    "children": [
+                       { "component_type": "Button", "properties": { "text": "打开", "background_color": "#2E7D32", "text_color": "#FFFFFF", "width": 120, "height": 48, "border_radius": 12, "on_click": { "action_type": "window_open" } } },
+                       { "component_type": "Button", "properties": { "text": "关闭", "background_color": "#757575", "text_color": "#FFFFFF", "width": 120, "height": 48, "border_radius": 12, "on_click": { "action_type": "window_close" } } }
+                    ]
+                  },
+                  {
+                    "component_type": "Button",
+                    "properties": { "text": "一键全部关闭", "background_color": "#C62828", "text_color": "#FFFFFF", "font_size": 16, "width": "100%", "height": 48, "border_radius": 12, "on_click": { "action_type": "window_close_all" } }
+                  }
+               ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+# 当前任务
+用户查询: "${userQuery}"
+数据上下文: ${JSON.stringify(dataContext, null, 2)}
+当前DSL: ${currentDsl ? JSON.stringify(currentDsl, null, 2) : "无"}
+
+请根据车窗控制设计指南生成界面。
+`;
+  }
+
+  /**
+   * 座椅控制模板
+   */
+  private static getSeatControlPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
+    return `
+# 座椅控制界面设计指南
+
+## 设计风格
+- 使用现代简洁风格
+- 主背景色: '#FFFFFF' (White)
+- 强调色: '#E65100' (Orange)
+
+## 布局结构
+- 标题栏: 左侧"座椅控制", 右侧图标(💺)
+- 座椅位置选择: 驾驶座、副驾驶座、后排
+- 控制选项: 前后调节、靠背角度、座椅加热、座椅通风
+- 卡片宽度: **380px** (Strict)
+
+## 示例
+User: "调节座椅"
+Output:
+{
+  "component_type": "Center",
+  "properties": { "background_color": "#FFFFFF" },
+  "children": [
+    {
+      "component_type": "Card",
+      "properties": { "background_color": "#FFFFFF", "padding": 24, "shape_border_radius": 24, "elevation": 4, "width": 380 },
+      "children": [
+        {
+          "component_type": "Column",
+          "properties": { "spacing": 20 },
+          "children": [
+             {
+               "component_type": "Row",
+               "properties": { "main_axis_alignment": "space_between", "width": "100%", "cross_axis_alignment": "center" },
+               "children": [
+                 { "component_type": "Text", "properties": { "text": "座椅控制", "font_size": 24, "font_weight": "bold", "color": "#333" } },
+                 { "component_type": "Text", "properties": { "text": "💺", "font_size": 24, "color": "#E65100" } }
+               ]
+             },
+             {
+               "component_type": "Row",
+               "properties": { "main_axis_alignment": "space_between" },
+               "children": [
+                  { "component_type": "Button", "properties": { "text": "驾驶座", "background_color": "#FFF3E0", "text_color": "#E65100", "width": 110, "height": 40, "border_radius": 12 } },
+                  { "component_type": "Button", "properties": { "text": "副驾驶", "background_color": "#FFF3E0", "text_color": "#E65100", "width": 110, "height": 40, "border_radius": 12 } },
+                  { "component_type": "Button", "properties": { "text": "后排", "background_color": "#FFF3E0", "text_color": "#E65100", "width": 110, "height": 40, "border_radius": 12 } }
+               ]
+            },
+             {
+               "component_type": "Column",
+               "properties": { "spacing": 12 },
+               "children": [
+                  {
+                    "component_type": "Row",
+                    "properties": { "main_axis_alignment": "space_between" },
+                    "children": [
+                       { "component_type": "Button", "properties": { "text": "向前", "background_color": "#FFF3E0", "text_color": "#E65100", "width": 120, "height": 40, "border_radius": 12, "on_click": { "action_type": "seat_forward" } } },
+                       { "component_type": "Button", "properties": { "text": "向后", "background_color": "#FFF3E0", "text_color": "#E65100", "width": 120, "height": 40, "border_radius": 12, "on_click": { "action_type": "seat_backward" } } }
+                    ]
+                  },
+                  {
+                    "component_type": "Row",
+                    "properties": { "main_axis_alignment": "space_between" },
+                    "children": [
+                       { "component_type": "Button", "properties": { "text": "加热", "background_color": "#FF7043", "text_color": "#FFFFFF", "width": 120, "height": 40, "border_radius": 12, "on_click": { "action_type": "seat_heat" } } },
+                       { "component_type": "Button", "properties": { "text": "通风", "background_color": "#42A5F5", "text_color": "#FFFFFF", "width": 120, "height": 40, "border_radius": 12, "on_click": { "action_type": "seat_ventilate" } }
+                    ]
+                  }
+               ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+# 当前任务
+用户查询: "${userQuery}"
+数据上下文: ${JSON.stringify(dataContext, null, 2)}
+当前DSL: ${currentDsl ? JSON.stringify(currentDsl, null, 2) : "无"}
+
+请根据座椅控制设计指南生成界面。
+`;
+  }
+
+  /**
+   * 灯光控制模板
+   */
+  private static getLightControlPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
+    return `
+# 灯光控制界面设计指南
+
+## 设计风格
+- 使用现代简洁风格
+- 主背景色: '#FFFFFF' (White)
+- 强调色: '#F57F17' (Yellow)
+
+## 布局结构
+- 标题栏: 左侧"灯光控制", 右侧图标(💡)
+- 灯光类型: 大灯、雾灯、阅读灯、氛围灯
+- 控制选项: 开启、关闭、自动模式、亮度调节
+- 卡片宽度: **380px** (Strict)
+
+## 示例
+User: "打开灯光"
+Output:
+{
+  "component_type": "Center",
+  "properties": { "background_color": "#FFFFFF" },
+  "children": [
+    {
+      "component_type": "Card",
+      "properties": { "background_color": "#FFFFFF", "padding": 24, "shape_border_radius": 24, "elevation": 4, "width": 380 },
+      "children": [
+        {
+          "component_type": "Column",
+          "properties": { "spacing": 20 },
+          "children": [
+             {
+               "component_type": "Row",
+               "properties": { "main_axis_alignment": "space_between", "width": "100%", "cross_axis_alignment": "center" },
+               "children": [
+                 { "component_type": "Text", "properties": { "text": "灯光控制", "font_size": 24, "font_weight": "bold", "color": "#333" } },
+                 { "component_type": "Text", "properties": { "text": "💡", "font_size": 24, "color": "#F57F17" } }
+               ]
+             },
+             {
+               "component_type": "Column",
+               "properties": { "spacing": 12 },
+               "children": [
+                  {
+                    "component_type": "Row",
+                    "properties": { "main_axis_alignment": "space_between" },
+                    "children": [
+                       { "component_type": "Button", "properties": { "text": "大灯", "background_color": "#FFF9C4", "text_color": "#F57F17", "width": 88, "height": 40, "border_radius": 12 } },
+                       { "component_type": "Button", "properties": { "text": "雾灯", "background_color": "#FFF9C4", "text_color": "#F57F17", "width": 88, "height": 40, "border_radius": 12 } },
+                       { "component_type": "Button", "properties": { "text": "阅读灯", "background_color": "#FFF9C4", "text_color": "#F57F17", "width": 88, "height": 40, "border_radius": 12 } },
+                       { "component_type": "Button", "properties": { "text": "氛围灯", "background_color": "#FFF9C4", "text_color": "#F57F17", "width": 88, "height": 40, "border_radius": 12 } }
+                    ]
+                  },
+                  {
+                    "component_type": "Row",
+                    "properties": { "main_axis_alignment": "space_between" },
+                    "children": [
+                       { "component_type": "Button", "properties": { "text": "开启", "background_color": "#F57F17", "text_color": "#FFFFFF", "width": 120, "height": 48, "border_radius": 12, "on_click": { "action_type": "light_on" } } },
+                       { "component_type": "Button", "properties": { "text": "关闭", "background_color": "#757575", "text_color": "#FFFFFF", "width": 120, "height": 48, "border_radius": 12, "on_click": { "action_type": "light_off" } }
+                    ]
+                  },
+                  {
+                    "component_type": "Button",
+                    "properties": { "text": "自动模式", "background_color": "#FFF9C4", "text_color": "#F57F17", "font_size": 16, "width": "100%", "height": 48, "border_radius": 12, "on_click": { "action_type": "light_auto" } }
+                  }
+               ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+# 当前任务
+用户查询: "${userQuery}"
+数据上下文: ${JSON.stringify(dataContext, null, 2)}
+当前DSL: ${currentDsl ? JSON.stringify(currentDsl, null, 2) : "无"}
+
+请根据灯光控制设计指南生成界面。
 `;
   }
 
