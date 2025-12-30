@@ -3,6 +3,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import MainScreen from './src/screens/MainScreen';
 import PermissionManager, { PermissionStatus } from './src/utils/Permissions';
+import CarAirConditioner from "./src/components/CarAirConditioner.tsx";
 
 /**
  * 应用程序根组件。
@@ -60,16 +61,17 @@ const App = (): React.JSX.Element => {
 
   return (
     <SafeAreaProvider>
+        {/*<CarAirConditioner></CarAirConditioner>*/}
       <MainScreen
         initialPermissionStatus={permissionStatus}
         onPermissionRequest={async () => {
           const status = await PermissionManager.requestRecordAudioPermission();
           setPermissionStatus(status);
-          
+
           if (status === PermissionStatus.BLOCKED) {
             PermissionManager.showPermissionDeniedAlert(true);
           }
-          
+
           return status;
         }}
       />
