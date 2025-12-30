@@ -119,29 +119,29 @@ export const chatHandler = async (req: Request, res: Response) => {
         }
 
         console.log(`[Chat] Starting intent recognition for: "${inputMsg}"`);
-        
+
         // Get conversation history for context-aware intent recognition
         const conversationHistory: ConversationTurn[] = serverState.conversationHistory || [];
         console.log(`[Chat] Conversation history length: ${conversationHistory.length}`);
         console.log(`[Chat] Conversation history:`, JSON.stringify(conversationHistory.map(h => ({ query: h.query, response: h.response.substring(0, 100) }))));
-        
+
         // Keep-alive loop
         const keepAliveInterval = setInterval(() => { res.write(': keep-alive\n\n'); }, 3000);
-        
+
         let fullResponse: string;
         let recognizedIntent: any;
-        
+
         try {
             // Use new intent-aware generation with conversation history
             const result = await LLMService.generateUIWithIntent(inputMsg, contextData, currentDsl, serverState.lastIntent, conversationHistory);
             fullResponse = result.dsl;
             recognizedIntent = result.intent;
-            
+
             // Use extracted keyword from intent recognition if available
             if (recognizedIntent.extractedKeyword) {
                 console.log(`[Chat] Using extracted keyword from intent recognition: "${recognizedIntent.extractedKeyword}"`);
             }
-            
+
             // Persist intent for next turn (Sticky Context)
             if (recognizedIntent && recognizedIntent.intent) {
                 serverState.lastIntent = recognizedIntent.intent;
@@ -154,15 +154,26 @@ export const chatHandler = async (req: Request, res: Response) => {
 
         // 5. Logic & Context Enrichment (POI/Weather/Route) - AFTER intent recognition
         // Now we can use the recognizedIntent to guide data fetching
-        
+
         // --- POI Logic ---
-        // Use extractedKeyword from intent recognition if available, otherwise use original input
-        let poiKeyword = recognizedIntent.extractedKeyword || inputMsg;
+        // Use extractedKeyword from intent recognition if available, otherwise use improved cleaning of original input
+        let poiKeyword = recognizedIntent.extractedKeyword;
+        if (!poiKeyword) {
+            const cleanMsg = inputMsg.replace(/附近|的|查找|搜索|查看|有没有|推荐|我想去|帮我找|找|一下/g, '').replace(/ting$/i, '').trim();
+            // Use cleaned message or fallback if empty
+            poiKeyword = cleanMsg;
+        }
+
         if (lowerMsg.includes('咖啡') || lowerMsg.includes('coffee') || lowerMsg.includes('cafe') ||
             lowerMsg.includes('附近') || lowerMsg.includes('餐厅') || lowerMsg.includes('商场') ||
             recognizedIntent.intent === 'poi') {
             sendText("\n(Searching nearby POIs...)");
             try {
+                // Default fallback if keyword is still empty but context implies coffee
+                if (!poiKeyword && (lowerMsg.includes('咖啡') || lowerMsg.includes('coffee'))) {
+                    poiKeyword = '咖啡';
+                }
+
                 console.log(`[Chat] POI Search: using keyword: "${poiKeyword}" (Original: "${inputMsg}")`);
 
                 // Use USER_LOCATION for "around" search
@@ -203,7 +214,7 @@ export const chatHandler = async (req: Request, res: Response) => {
 
         // --- Driving Route Logic ---
         const isRoute = lowerMsg.includes('去') || lowerMsg.includes('到') || lowerMsg.includes('导航') ||
-                        lowerMsg.includes('route') || lowerMsg.includes('drive') || recognizedIntent.intent === 'route_planning';
+            lowerMsg.includes('route') || lowerMsg.includes('drive') || recognizedIntent.intent === 'route_planning';
         if (isRoute) {
             // Regex to extract "From [A] To [B]" pattern
             const routeRegex = /(?:从|from)\s*([^到\s]+)\s*(?:到|to|去)\s*([^的\s]+)/i;
@@ -267,6 +278,50 @@ export const chatHandler = async (req: Request, res: Response) => {
             }
         }
 
+<<<<<<< HEAD
+=======
+        // 4. Intent Recognition & LLM
+        let currentDsl = serverState.dsl || null;
+
+        // Context Awareness Rule:
+        // 1. If user explicitly says "again", "rewrite", "reset" (重新, 再次), force fresh generation by ignoring currentDsl.
+        // 2. Otherwise, pass currentDsl to allow "in-place editing" (diff update).
+        const resetKeywords = ['重新', '再次', '再生成', 'reset', 'again', 'rewrite', 'retry'];
+        if (resetKeywords.some(kw => inputMsg.includes(kw))) {
+            console.log('[Chat] User requested RESET/RETRY. Ignoring current DSL to force fresh generation.');
+            currentDsl = null;
+        }
+
+        console.log(`[Chat] Starting intent recognition for: "${inputMsg}"`);
+
+        // Get conversation history for context-aware intent recognition
+        const conversationHistory: ConversationTurn[] = serverState.conversationHistory || [];
+        console.log(`[Chat] Conversation history length: ${conversationHistory.length}`);
+        console.log(`[Chat] Conversation history:`, JSON.stringify(conversationHistory.map(h => ({ query: h.query, response: h.response.substring(0, 100) }))));
+
+        // Keep-alive loop
+        const keepAliveInterval = setInterval(() => { res.write(': keep-alive\n\n'); }, 3000);
+
+        let fullResponse: string;
+        let recognizedIntent: any;
+
+        try {
+            // Use the new intent-aware generation with conversation history
+            const result = await LLMService.generateUIWithIntent(inputMsg, contextData, currentDsl, serverState.lastIntent, conversationHistory);
+            fullResponse = result.dsl;
+            recognizedIntent = result.intent;
+
+            // Persist intent for next turn (Sticky Context)
+            if (recognizedIntent && recognizedIntent.intent) {
+                serverState.lastIntent = recognizedIntent.intent;
+                console.log(`[Chat] Saved Intent for next turn: ${serverState.lastIntent}`);
+            }
+
+        } finally {
+            clearInterval(keepAliveInterval);
+        }
+
+>>>>>>> 62b6462 (fix(poi): 优化模糊查询关键字提取 (处理'一下'等口语词))
         console.log(`[Chat] [LLM Raw Response]:\n${fullResponse}\n-----------------------------------`);
 
         // 5. Parse DSL & Compute Patch
@@ -328,7 +383,7 @@ export const chatHandler = async (req: Request, res: Response) => {
             // Try to extract a meaningful response from DSL
             assistantResponse = JSON.stringify(dslObject);
         }
-        
+
         // Add current turn to conversation history
         serverState.conversationHistory.push({
             query: inputMsg,
