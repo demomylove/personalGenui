@@ -6,6 +6,7 @@ import { LLMService } from '../ai/LLMService';
 import { AmapService } from '../services/AmapService';
 // Import EventType from @ag-ui/core
 import { EventType } from '@ag-ui/core';
+import { ConversationTurn } from '../ai/IntentRecognitionService';
 
 // In-memory session store (MVP)
 const stateStore = new Map<string, any>();
@@ -28,6 +29,9 @@ export const chatHandler = async (req: Request, res: Response) => {
 
     // Initialize server state
     let serverState = stateStore.get(sessionId) || {};
+    if (!serverState.conversationHistory) {
+        serverState.conversationHistory = [];
+    }
     if (clientContext && Object.keys(clientContext).length > 0) {
         serverState.dataContext = { ...(serverState.dataContext || {}), ...clientContext };
     }
@@ -246,19 +250,24 @@ export const chatHandler = async (req: Request, res: Response) => {
         }
 
         console.log(`[Chat] Starting intent recognition for: "${inputMsg}"`);
-
+        
+        // Get conversation history for context-aware intent recognition
+        const conversationHistory: ConversationTurn[] = serverState.conversationHistory || [];
+        console.log(`[Chat] Conversation history length: ${conversationHistory.length}`);
+        console.log(`[Chat] Conversation history:`, JSON.stringify(conversationHistory.map(h => ({ query: h.query, response: h.response.substring(0, 100) }))));
+        
         // Keep-alive loop
         const keepAliveInterval = setInterval(() => { res.write(': keep-alive\n\n'); }, 3000);
-
+        
         let fullResponse: string;
         let recognizedIntent: any;
-
+        
         try {
-            // Use the new intent-aware generation
-            const result = await LLMService.generateUIWithIntent(inputMsg, contextData, currentDsl, serverState.lastIntent);
+            // Use the new intent-aware generation with conversation history
+            const result = await LLMService.generateUIWithIntent(inputMsg, contextData, currentDsl, serverState.lastIntent, conversationHistory);
             fullResponse = result.dsl;
             recognizedIntent = result.intent;
-
+            
             // Persist intent for next turn (Sticky Context)
             if (recognizedIntent && recognizedIntent.intent) {
                 serverState.lastIntent = recognizedIntent.intent;
@@ -323,6 +332,29 @@ export const chatHandler = async (req: Request, res: Response) => {
             timestamp: Date.now()
         });
 
+        // Save conversation history for context-aware intent recognition
+        // Extract the assistant's response from the DSL
+        let assistantResponse = fullResponse;
+        if (dslObject) {
+            // Try to extract a meaningful response from the DSL
+            assistantResponse = JSON.stringify(dslObject);
+        }
+        
+        // Add current turn to conversation history
+        serverState.conversationHistory.push({
+            query: inputMsg,
+            response: assistantResponse,
+            timestamp: Date.now()
+        });
+
+        // Keep only the last 10 turns
+        const maxHistoryTurns = 10;
+        if (serverState.conversationHistory.length > maxHistoryTurns) {
+            serverState.conversationHistory = serverState.conversationHistory.slice(-maxHistoryTurns);
+        }
+
+        console.log(`[Chat] Conversation history updated. Total turns: ${serverState.conversationHistory.length}`);
+
         // 7. RUN_FINISHED
         writeEvent({
             type: EventType.RUN_FINISHED,
@@ -358,6 +390,11 @@ export const chatOnceHandler = async (req: Request, res: Response) => {
     const sessionId = reqSessionId || uuidv4();
     let serverState = stateStore.get(sessionId) || {};
 
+    // Initialize conversation history if not exists
+    if (!serverState.conversationHistory) {
+        serverState.conversationHistory = [];
+    }
+
     if (state?.dataContext) {
         serverState.dataContext = state.dataContext;
     }
@@ -377,12 +414,31 @@ export const chatOnceHandler = async (req: Request, res: Response) => {
         }
 
         const currentDsl = serverState.dsl || null;
-        // Use intent-aware generation for the once handler as well
-        const result = await LLMService.generateUIWithIntent(lastUserMessage, serverState.dataContext || {}, currentDsl, serverState.lastIntent);
+        // Use intent-aware generation with conversation history for the once handler as well
+        const result = await LLMService.generateUIWithIntent(
+            lastUserMessage,
+            serverState.dataContext || {},
+            currentDsl,
+            serverState.lastIntent,
+            serverState.conversationHistory
+        );
         const dslString = result.dsl;
 
         if (result.intent && result.intent.intent) {
             serverState.lastIntent = result.intent.intent;
+        }
+
+        // Save conversation history
+        serverState.conversationHistory.push({
+            query: lastUserMessage,
+            response: dslString,
+            timestamp: Date.now()
+        });
+
+        // Keep only the last 10 turns
+        const maxHistoryTurns = 10;
+        if (serverState.conversationHistory.length > maxHistoryTurns) {
+            serverState.conversationHistory = serverState.conversationHistory.slice(-maxHistoryTurns);
         }
 
         let dslObject: any;

@@ -7,8 +7,8 @@
  */
 
 // Basic fetch polyfill/implementation for Node.js if needed (Node 18+ has native fetch)
-// import fetch from 'node-fetch'; 
-import { IntentRecognitionService, IntentResult, IntentType } from './IntentRecognitionService';
+// import fetch from 'node-fetch';
+import { IntentRecognitionService, IntentResult, IntentType, ConversationTurn } from './IntentRecognitionService';
 import { IntentTemplateService } from './IntentTemplateService';
 import { PromptBuilder } from './PromptBuilder';
 
@@ -40,14 +40,20 @@ export class LLMService {
     userQuery: string,
     dataContext: any,
     currentDsl?: any,
-    lastIntent?: IntentType
+    lastIntent?: IntentType,
+    conversationHistory?: ConversationTurn[]
   ): Promise<{ dsl: string, intent: IntentResult }> {
     try {
-      // Step 1: Recognize intent
+      // Step 1: Recognize intent with conversation history (context-aware, not keyword-based)
       let intentResult: IntentResult;
       try {
-        intentResult = await IntentRecognitionService.recognizeIntent(userQuery);
+        intentResult = await IntentRecognitionService.recognizeIntent(
+          userQuery,
+          conversationHistory,
+          { maxTurns: 10, enableContextAwareness: true }
+        );
         console.log(`[LLMService] Intent recognized: ${intentResult.intent} (confidence: ${intentResult.confidence})`);
+        console.log(`[LLMService] Intent reasoning: ${intentResult.reasoning}`);
       } catch (error) {
         console.warn('[LLMService] Intent recognition failed, using quick recognition:', error);
         intentResult = IntentRecognitionService.quickIntentRecognition(userQuery);
