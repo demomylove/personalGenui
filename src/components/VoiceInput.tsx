@@ -126,6 +126,25 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
             console.error('ASR识别错误:', event.message);
             setIsListening(false);
             setInterimText('');
+            
+            // 在长按模式下，如果发生错误，也应该停止长按状态
+            if (pressing) {
+                setPressing(false);
+                stopPulseAnimation();
+                
+                // 如果有累积的文本，仍然提交
+                if (accumulatedText.trim()) {
+                    if (onChangeText) {
+                        onChangeText(accumulatedText.trim());
+                    }
+                    if (onSubmitEditing) {
+                        onSubmitEditing(accumulatedText.trim());
+                    }
+                }
+                
+                // 清空累积的文本
+                setAccumulatedText('');
+            }
 
             // 注意：不再在这里手动重启ASR，因为Android端已经在持续模式下自动处理错误
             // 如果Android端自动重启失败，用户可以手动切换开关来重启
@@ -151,7 +170,18 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
 
         try {
             setIsListening(true);
-            await VoiceInputModule.startAsr();
+            // 增加错误处理，如果启动失败，重置状态
+            await VoiceInputModule.startAsr().catch((error) => {
+                console.error('启动ASR失败:', error);
+                setIsListening(false);
+                // 如果在长按模式下，也需要重置长按状态
+                if (pressing) {
+                    setPressing(false);
+                    stopPulseAnimation();
+                    setAccumulatedText('');
+                }
+                throw error;
+            });
         } catch (error) {
             console.error('启动ASR失败:', error);
             setIsListening(false);
@@ -162,11 +192,20 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
     const stopListening = async () => {
         // 即使isListening为false也要尝试停止，因为可能存在后台识别
         try {
-            await VoiceInputModule.stopAsr();
+            await VoiceInputModule.stopAsr().catch((error) => {
+                console.error('停止ASR失败:', error);
+                // 即使停止失败，也要重置状态
+                setIsListening(false);
+                setInterimText('');
+                throw error;
+            });
             setIsListening(false);
             setInterimText(''); // 清除临时文本
         } catch (error) {
             console.error('停止ASR失败:', error);
+            // 确保状态被重置
+            setIsListening(false);
+            setInterimText('');
         }
     };
 
@@ -265,9 +304,18 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
         const hasPermission = await checkAndRequestPermission();
         if (hasPermission) {
             setPressing(true);
-            startListening();
-            // 开始脉冲动画
-            startPulseAnimation();
+            // 清空之前的累积文本
+            setAccumulatedText('');
+            setInterimText('');
+            try {
+                await startListening();
+                // 开始脉冲动画
+                startPulseAnimation();
+            } catch (error) {
+                // 如果启动失败，重置状态
+                setPressing(false);
+                console.error('长按启动ASR失败:', error);
+            }
         }
     };
 

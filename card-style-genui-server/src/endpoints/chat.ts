@@ -289,7 +289,7 @@ export const chatHandler = async (req: Request, res: Response) => {
         const { IntentTemplateService } = require('../ai/IntentTemplateService'); // Or rely on top-level import
 
         // Generate Prompt using the Intent + Context Data
-        const intentPrompt = IntentTemplateService.getIntentSpecificPrompt(recognizedIntent, inputMsg, contextData, currentDsl);
+        const intentPrompt = PromptBuilder.constructPrompt(inputMsg, contextData, currentDsl);
 
         // Call LLM
         const fullResponse = await LLMService.generateUI(intentPrompt, inputMsg, contextData, currentDsl);

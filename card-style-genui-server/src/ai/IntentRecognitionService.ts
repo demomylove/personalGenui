@@ -86,7 +86,7 @@ export class IntentRecognitionService {
                     messages: [
                         {
                             role: "system",
-                            content: "你是一个专业的意图识别助手。请基于对话历史和上下文语义分析用户输入的意图，而不是简单匹配关键词。请严格按照JSON格式返回结果。"
+                            content: "You are a professional intent recognition assistant. Please analyze the user's input intent based on dialogue history and contextual semantics, rather than simply matching keywords. Please return results strictly in JSON format."
                         },
                         {
                             role: "user",

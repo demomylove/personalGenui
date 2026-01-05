@@ -517,58 +517,7 @@ Output:
 User: "把空调调到24度"
 Output:
 {
-  "component_type": "Center",
-  "properties": { "background_color": "#FFFFFF" },
-  "children": [
-    {
-      "component_type": "Card",
-      "properties": { "background_color": "#FFFFFF", "padding": 24, "shape_border_radius": 24, "elevation": 4, "width": 380 },
-      "children": [
-        {
-          "component_type": "Column",
-          "properties": { "spacing": 24 },
-          "children": [
-             {
-               "component_type": "Row",
-               "properties": { "main_axis_alignment": "space_between", "width": "100%", "cross_axis_alignment": "center" },
-               "children": [
-                 { "component_type": "Text", "properties": { "text": "空调控制", "font_size": 24, "font_weight": "bold", "color": "#333" } },
-                 { "component_type": "Text", "properties": { "text": "❄️", "font_size": 24, "color": "#4285F4" } }
-               ]
-             },
-             {
-               "component_type": "Row",
-               "properties": { "main_axis_alignment": "space_between", "cross_axis_alignment": "center" },
-               "children": [
-                   {
-                     "component_type": "Button",
-                     "properties": { "text": "−", "background_color": "#E3F2FD", "text_color": "#1976D2", "font_size": 32, "width": 64, "height": 64, "border_radius": 16, "on_click": { "action_type": "ac_temp_down" } }
-                   },
-                   { "component_type": "Text", "properties": { "text": "24°", "font_size": 64, "font_weight": "bold", "color": "#212121" } },
-                   {
-                     "component_type": "Button",
-                     "properties": { "text": "+", "background_color": "#E3F2FD", "text_color": "#1976D2", "font_size": 32, "width": 64, "height": 64, "border_radius": 16, "on_click": { "action_type": "ac_temp_up" } }
-                   }
-                ]
-             },
-             {
-               "component_type": "Row",
-               "properties": { "main_axis_alignment": "space_between" },
-               "children": [
-                   { "component_type": "Button", "properties": { "text": "❄️ 制冷", "background_color": "#FFFFFF", "border_color": "#E0E0E0", "border_width": 1, "text_color": "#4285F4", "width": 88, "height": 40, "border_radius": 20 } },
-                   { "component_type": "Button", "properties": { "text": "⚙️ 自动", "background_color": "#E3F2FD", "text_color": "#1976D2", "width": 88, "height": 40, "border_radius": 20 } },
-                   { "component_type": "Button", "properties": { "text": "☀️ 制热", "background_color": "#FFFFFF", "border_color": "#E0E0E0", "border_width": 1, "text_color": "#FF7043", "width": 88, "height": 40, "border_radius": 20 } }
-                ]
-             },
-             {
-               "component_type": "Button",
-               "properties": { "text": "开启空调", "background_color": "#E3F2FD", "text_color": "#4285F4", "font_size": 20, "font_weight": "bold", "width": "100%", "height": 56, "border_radius": 28, "on_click": { "action_type": "ac_toggle" } }
-             }
-          ]
-        }
-      ]
-    }
-  ]
+  "component_type": "car_control_ac"
 }
 
 # 当前任务
@@ -601,52 +550,7 @@ Output:
 User: "打开车控"
 Output:
 {
-  "component_type": "Center",
-  "properties": { "background_color": "#FFFFFF" },
-  "children": [
-    {
-      "component_type": "Card",
-      "properties": { "background_color": "#FFFFFF", "padding": 24, "shape_border_radius": 24, "elevation": 4, "width": 380 },
-      "children": [
-        {
-          "component_type": "Column",
-          "properties": { "spacing": 20 },
-          "children": [
-             {
-               "component_type": "Row",
-               "properties": { "main_axis_alignment": "space_between", "width": "100%", "cross_axis_alignment": "center" },
-               "children": [
-                 { "component_type": "Text", "properties": { "text": "车控", "font_size": 24, "font_weight": "bold", "color": "#333" } },
-                 { "component_type": "Text", "properties": { "text": "🚗", "font_size": 24, "color": "#4285F4" } }
-               ]
-             },
-             {
-               "component_type": "Column",
-               "properties": { "spacing": 12 },
-               "children": [
-                  {
-                    "component_type": "Button",
-                    "properties": { "text": "❄️ 空调控制", "background_color": "#E3F2FD", "text_color": "#1976D2", "font_size": 16, "width": "100%", "height": 48, "border_radius": 12, "on_click": { "action_type": "ac_control" } }
-                  },
-                  {
-                    "component_type": "Button",
-                    "properties": { "text": "🪟 车窗控制", "background_color": "#E8F5E9", "text_color": "#2E7D32", "font_size": 16, "width": "100%", "height": 48, "border_radius": 12, "on_click": { "action_type": "window_control" } }
-                  },
-                  {
-                    "component_type": "Button",
-                    "properties": { "text": "💺 座椅控制", "background_color": "#FFF3E0", "text_color": "#E65100", "font_size": 16, "width": "100%", "height": 48, "border_radius": 12, "on_click": { "action_type": "seat_control" } }
-                  },
-                  {
-                    "component_type": "Button",
-                    "properties": { "text": "💡 灯光控制", "background_color": "#FFF9C4", "text_color": "#F57F17", "font_size": 16, "width": "100%", "height": 48, "border_radius": 12, "on_click": { "action_type": "light_control" } }
-                  }
-               ]
-            }
-          ]
-        }
-      ]
-    }
-  ]
+  "component_type": "car_control_general"
 }
 
 # 当前任务
@@ -680,58 +584,7 @@ Output:
 User: "打开车窗"
 Output:
 {
-  "component_type": "Center",
-  "properties": { "background_color": "#FFFFFF" },
-  "children": [
-    {
-      "component_type": "Card",
-      "properties": { "background_color": "#FFFFFF", "padding": 24, "shape_border_radius": 24, "elevation": 4, "width": 380 },
-      "children": [
-        {
-          "component_type": "Column",
-          "properties": { "spacing": 20 },
-          "children": [
-             {
-               "component_type": "Row",
-               "properties": { "main_axis_alignment": "space_between", "width": "100%", "cross_axis_alignment": "center" },
-               "children": [
-                 { "component_type": "Text", "properties": { "text": "车窗控制", "font_size": 24, "font_weight": "bold", "color": "#333" } },
-                 { "component_type": "Text", "properties": { "text": "🪟", "font_size": 24, "color": "#2E7D32" } }
-               ]
-             },
-             {
-               "component_type": "Column",
-               "properties": { "spacing": 12 },
-               "children": [
-                  {
-                    "component_type": "Row",
-                    "properties": { "main_axis_alignment": "space_between" },
-                    "children": [
-                       { "component_type": "Button", "properties": { "text": "前左", "background_color": "#E8F5E9", "text_color": "#2E7D32", "width": 88, "height": 40, "border_radius": 12 } },
-                       { "component_type": "Button", "properties": { "text": "前右", "background_color": "#E8F5E9", "text_color": "#2E7D32", "width": 88, "height": 40, "border_radius": 12 } },
-                       { "component_type": "Button", "properties": { "text": "后左", "background_color": "#E8F5E9", "text_color": "#2E7D32", "width": 88, "height": 40, "border_radius": 12 } },
-                       { "component_type": "Button", "properties": { "text": "后右", "background_color": "#E8F5E9", "text_color": "#2E7D32", "width": 88, "height": 40, "border_radius": 12 } }
-                    ]
-                  },
-                  {
-                    "component_type": "Row",
-                    "properties": { "main_axis_alignment": "space_between" },
-                    "children": [
-                       { "component_type": "Button", "properties": { "text": "打开", "background_color": "#2E7D32", "text_color": "#FFFFFF", "width": 120, "height": 48, "border_radius": 12, "on_click": { "action_type": "window_open" } } },
-                       { "component_type": "Button", "properties": { "text": "关闭", "background_color": "#757575", "text_color": "#FFFFFF", "width": 120, "height": 48, "border_radius": 12, "on_click": { "action_type": "window_close" } } }
-                    ]
-                  },
-                  {
-                    "component_type": "Button",
-                    "properties": { "text": "一键全部关闭", "background_color": "#C62828", "text_color": "#FFFFFF", "font_size": 16, "width": "100%", "height": 48, "border_radius": 12, "on_click": { "action_type": "window_close_all" } }
-                  }
-               ]
-            }
-          ]
-        }
-      ]
-    }
-  ]
+  "component_type": "car_control_window"
 }
 
 # 当前任务
@@ -765,61 +618,7 @@ Output:
 User: "调节座椅"
 Output:
 {
-  "component_type": "Center",
-  "properties": { "background_color": "#FFFFFF" },
-  "children": [
-    {
-      "component_type": "Card",
-      "properties": { "background_color": "#FFFFFF", "padding": 24, "shape_border_radius": 24, "elevation": 4, "width": 380 },
-      "children": [
-        {
-          "component_type": "Column",
-          "properties": { "spacing": 20 },
-          "children": [
-             {
-               "component_type": "Row",
-               "properties": { "main_axis_alignment": "space_between", "width": "100%", "cross_axis_alignment": "center" },
-               "children": [
-                 { "component_type": "Text", "properties": { "text": "座椅控制", "font_size": 24, "font_weight": "bold", "color": "#333" } },
-                 { "component_type": "Text", "properties": { "text": "💺", "font_size": 24, "color": "#E65100" } }
-               ]
-             },
-             {
-               "component_type": "Row",
-               "properties": { "main_axis_alignment": "space_between" },
-               "children": [
-                  { "component_type": "Button", "properties": { "text": "驾驶座", "background_color": "#FFF3E0", "text_color": "#E65100", "width": 110, "height": 40, "border_radius": 12 } },
-                  { "component_type": "Button", "properties": { "text": "副驾驶", "background_color": "#FFF3E0", "text_color": "#E65100", "width": 110, "height": 40, "border_radius": 12 } },
-                  { "component_type": "Button", "properties": { "text": "后排", "background_color": "#FFF3E0", "text_color": "#E65100", "width": 110, "height": 40, "border_radius": 12 } }
-               ]
-            },
-             {
-               "component_type": "Column",
-               "properties": { "spacing": 12 },
-               "children": [
-                  {
-                    "component_type": "Row",
-                    "properties": { "main_axis_alignment": "space_between" },
-                    "children": [
-                       { "component_type": "Button", "properties": { "text": "向前", "background_color": "#FFF3E0", "text_color": "#E65100", "width": 120, "height": 40, "border_radius": 12, "on_click": { "action_type": "seat_forward" } } },
-                       { "component_type": "Button", "properties": { "text": "向后", "background_color": "#FFF3E0", "text_color": "#E65100", "width": 120, "height": 40, "border_radius": 12, "on_click": { "action_type": "seat_backward" } } }
-                    ]
-                  },
-                  {
-                    "component_type": "Row",
-                    "properties": { "main_axis_alignment": "space_between" },
-                    "children": [
-                       { "component_type": "Button", "properties": { "text": "加热", "background_color": "#FF7043", "text_color": "#FFFFFF", "width": 120, "height": 40, "border_radius": 12, "on_click": { "action_type": "seat_heat" } } },
-                       { "component_type": "Button", "properties": { "text": "通风", "background_color": "#42A5F5", "text_color": "#FFFFFF", "width": 120, "height": 40, "border_radius": 12, "on_click": { "action_type": "seat_ventilate" } }
-                    ]
-                  }
-               ]
-            }
-          ]
-        }
-      ]
-    }
-  ]
+  "component_type": "car_control_seat"
 }
 
 # 当前任务
@@ -853,58 +652,7 @@ Output:
 User: "打开灯光"
 Output:
 {
-  "component_type": "Center",
-  "properties": { "background_color": "#FFFFFF" },
-  "children": [
-    {
-      "component_type": "Card",
-      "properties": { "background_color": "#FFFFFF", "padding": 24, "shape_border_radius": 24, "elevation": 4, "width": 380 },
-      "children": [
-        {
-          "component_type": "Column",
-          "properties": { "spacing": 20 },
-          "children": [
-             {
-               "component_type": "Row",
-               "properties": { "main_axis_alignment": "space_between", "width": "100%", "cross_axis_alignment": "center" },
-               "children": [
-                 { "component_type": "Text", "properties": { "text": "灯光控制", "font_size": 24, "font_weight": "bold", "color": "#333" } },
-                 { "component_type": "Text", "properties": { "text": "💡", "font_size": 24, "color": "#F57F17" } }
-               ]
-             },
-             {
-               "component_type": "Column",
-               "properties": { "spacing": 12 },
-               "children": [
-                  {
-                    "component_type": "Row",
-                    "properties": { "main_axis_alignment": "space_between" },
-                    "children": [
-                       { "component_type": "Button", "properties": { "text": "大灯", "background_color": "#FFF9C4", "text_color": "#F57F17", "width": 88, "height": 40, "border_radius": 12 } },
-                       { "component_type": "Button", "properties": { "text": "雾灯", "background_color": "#FFF9C4", "text_color": "#F57F17", "width": 88, "height": 40, "border_radius": 12 } },
-                       { "component_type": "Button", "properties": { "text": "阅读灯", "background_color": "#FFF9C4", "text_color": "#F57F17", "width": 88, "height": 40, "border_radius": 12 } },
-                       { "component_type": "Button", "properties": { "text": "氛围灯", "background_color": "#FFF9C4", "text_color": "#F57F17", "width": 88, "height": 40, "border_radius": 12 } }
-                    ]
-                  },
-                  {
-                    "component_type": "Row",
-                    "properties": { "main_axis_alignment": "space_between" },
-                    "children": [
-                       { "component_type": "Button", "properties": { "text": "开启", "background_color": "#F57F17", "text_color": "#FFFFFF", "width": 120, "height": 48, "border_radius": 12, "on_click": { "action_type": "light_on" } } },
-                       { "component_type": "Button", "properties": { "text": "关闭", "background_color": "#757575", "text_color": "#FFFFFF", "width": 120, "height": 48, "border_radius": 12, "on_click": { "action_type": "light_off" } }
-                    ]
-                  },
-                  {
-                    "component_type": "Button",
-                    "properties": { "text": "自动模式", "background_color": "#FFF9C4", "text_color": "#F57F17", "font_size": 16, "width": "100%", "height": 48, "border_radius": 12, "on_click": { "action_type": "light_auto" } }
-                  }
-               ]
-            }
-          ]
-        }
-      ]
-    }
-  ]
+  "component_type": "car_control_light"
 }
 
 # 当前任务

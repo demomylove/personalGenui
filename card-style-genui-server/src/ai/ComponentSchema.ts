@@ -7,7 +7,7 @@
 
 export const DSL_SCHEMA_DESCRIPTION = `
 type Component = {
-  component_type: "Column" | "Row" | "Text" | "Image" | "Card" | "SizedBox" | "Button" | "Align" | "Center" | "ConstrainedBox" | "Padding" | "Icon" | "IconButton" | "Slider" | "LinearGradient";
+  component_type: "Column" | "Row" | "Text" | "Image" | "Card" | "SizedBox" | "Button" | "Align" | "Center" | "ConstrainedBox" | "Padding" | "Icon" | "IconButton" | "Slider" | "LinearGradient" | "car_control_ac" | "car_control_seat" | "car_control_window" | "car_control_light" | "car_control_general";
   properties?: Record<string, any>;
   children?: Component[];
 }
@@ -230,7 +230,25 @@ AVAILABLE COMPONENTS & PROPERTIES:
         justify_content: string
       }
     - children: Component[]
+ 
 
+# Car Control Components
+These components are pre-defined native components that render specific car control interfaces:
+
+1. car_control_ac - Air Conditioning Control
+   Renders a native air conditioning control interface with temperature, fan speed, and mode controls.
+
+2. car_control_seat - Seat Control
+   Renders a native seat control interface with position adjustment, heating, and ventilation controls.
+
+3. car_control_window - Window Control
+   Renders a native window control interface for all four windows with open/close functionality.
+
+4. car_control_light - Light Control
+   Renders a native light control interface for headlights, fog lights, and interior lights.
+
+5. car_control_general - General Car Control
+   Renders a general car control interface with buttons to access specific control categories.
 
 # Event Actions (ActionObject)
 When a component needs to trigger an action on click, use on_click property:

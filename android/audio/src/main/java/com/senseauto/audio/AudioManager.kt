@@ -128,13 +128,23 @@ class AudioManager : IAsrListener, ITtsListener, IWakeupListener {
 
     fun startAsr() {
         Logger.i("startAsr")
-        asrManager.start()
+        try {
+            asrManager.start()
+        } catch (e: Exception) {
+            Logger.e("startAsr error: ${e.message}")
+            throw e
+        }
     }
 
     fun stopAsr() {
         if (this::asrManager.isInitialized) {
             Logger.i("stopAsr")
-            asrManager.stop()
+            try {
+                asrManager.stop()
+            } catch (e: Exception) {
+                Logger.e("stopAsr error: ${e.message}")
+                throw e
+            }
         }
     }
 
@@ -162,7 +172,7 @@ class AudioManager : IAsrListener, ITtsListener, IWakeupListener {
     }
 
     override fun onAsrError(p0: Int, p1: String?) {
-        Logger.i("onAsrError: code=$p0, message=${p1 ?: ""}")
+        Logger.e("onAsrError: code=$p0, message=${p1 ?: ""}")
         asrListener.onAsrError(p0, p1 ?: "")
         
         // 如果是持续模式，尝试自动重启ASR
