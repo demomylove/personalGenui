@@ -6,7 +6,8 @@ import { LLMService } from '../ai/LLMService';
 import { AmapService } from '../services/AmapService';
 // Import EventType from @ag-ui/core
 import { EventType } from '@ag-ui/core';
-import { ConversationTurn } from '../ai/IntentRecognitionService';
+import { ConversationTurn, IntentRecognitionService } from '../ai/IntentRecognitionService';
+import { IntentTemplateService } from '../ai/IntentTemplateService';
 
 // In-memory session store (MVP)
 const stateStore = new Map<string, any>();
@@ -124,7 +125,6 @@ export const chatHandler = async (req: Request, res: Response) => {
 
         // 3. Setup Context Data
         const lowerMsg = inputMsg.toLowerCase();
-        let additionalInstruction = "";
 
         // Ensure dataContext exists
         if (!serverState.dataContext) serverState.dataContext = {};
@@ -134,184 +134,167 @@ export const chatHandler = async (req: Request, res: Response) => {
         const USER_LOCATION = contextData.location || '121.399641,31.168876'; // Fallback to Shanghai if missing
         console.log(`[Chat] Using User Location: ${USER_LOCATION}`);
 
-        // 4. Intent Recognition & LLM
-        let currentDsl = serverState.dsl || null;
-
-        // Context Awareness Rule:
-        // 1. If user explicitly says "again", "rewrite", "reset" (重新, 再次), force fresh generation by ignoring currentDsl.
-        // 2. Otherwise, pass currentDsl to allow "in-place editing" (diff update).
-        const resetKeywords = ['重新', '再次', '再生成', 'reset', 'again', 'rewrite', 'retry'];
-        if (resetKeywords.some(kw => inputMsg.includes(kw))) {
-            console.log('[Chat] User requested RESET/RETRY. Ignoring current DSL to force fresh generation.');
-            currentDsl = null;
-        }
-
+        // --- STEP 1: Intent Recognition ---
         console.log(`[Chat] Starting intent recognition for: "${inputMsg}"`);
 
         // Get conversation history for context-aware intent recognition
         const conversationHistory: ConversationTurn[] = serverState.conversationHistory || [];
         console.log(`[Chat] Conversation history length: ${conversationHistory.length}`);
-        if (conversationHistory.length > 0) {
-            console.log(`[Chat] Conversation history:`, JSON.stringify(conversationHistory.map(h => ({
-                query: h.query,
-                response: h.response.substring(0, 100) + (h.response.length > 100 ? '...' : '')
-            }))));
-        } else {
-            console.log(`[Chat] Conversation history is empty - context awareness may be limited`);
-        }
+        
+        let recognizedIntent: any; // IntentResult
 
         // Keep-alive loop
         const keepAliveInterval = setInterval(() => { res.write(': keep-alive\n\n'); }, 3000);
 
-        let fullResponse: string;
-        let recognizedIntent: any;
-
         try {
-            // Use new intent-aware generation with conversation history
-            const result = await LLMService.generateUIWithIntent(inputMsg, contextData, currentDsl, serverState.lastIntent, conversationHistory);
-            fullResponse = result.dsl;
-            recognizedIntent = result.intent;
+            // Recognize Intent FIRST
+            recognizedIntent = await IntentRecognitionService.recognizeIntent(
+                inputMsg, 
+                conversationHistory,
+                { maxTurns: 10, enableContextAwareness: true }
+            );
 
-            // Use extracted keyword from intent recognition if available
+            console.log(`[LLMService] Intent recognized: ${recognizedIntent.intent} (confidence: ${recognizedIntent.confidence})`);
+            console.log(`[LLMService] Intent reasoning: ${recognizedIntent.reasoning}`);
+
+            // Apply Sticky Intent Logic
+            const lastIntent = serverState.lastIntent;
+             if (lastIntent && lastIntent !== 'chat' && lastIntent !== 'unknown') {
+                // KEYWORDS: Visual or Content modifications
+                const modificationKeywords = [
+                  '改成', '换成', '颜色', '变为', 'adjust', 'change', 'color', 'background', 'larger', 'smaller', 'font', 'red', 'green', 'blue', 'purple',
+                  '标题', '文字', '文本', '修改', 'title', 'text', 'size', '字体', '字号', '内容', '大小', 'updated'
+                ];
+         
+                if (modificationKeywords.some(kw => inputMsg.includes(kw))) {
+                  if (recognizedIntent.intent === 'chat' || recognizedIntent.intent === 'cartoon_image' || recognizedIntent.confidence < 0.9) {
+                    console.log(`[LLMService] Sticky Intent Triggered: Overriding '${recognizedIntent.intent}' with LastIntent '${lastIntent}' due to modification keywords.`);
+                    recognizedIntent.intent = lastIntent;
+                    recognizedIntent.reasoning = "Sticky Intent: User requested style modification on previous context.";
+                  }
+                }
+              }
+
+            // Valid extracted keyword?
             if (recognizedIntent.extractedKeyword) {
                 console.log(`[Chat] Using extracted keyword from intent recognition: "${recognizedIntent.extractedKeyword}"`);
             }
+            
+            // Persist intent
+            serverState.lastIntent = recognizedIntent.intent;
+            console.log(`[Chat] Saved Intent for next turn: ${serverState.lastIntent}`);
 
-            // Persist intent for next turn (Sticky Context)
-            if (recognizedIntent && recognizedIntent.intent) {
-                serverState.lastIntent = recognizedIntent.intent;
-                console.log(`[Chat] Saved Intent for next turn: ${serverState.lastIntent}`);
+        } catch (err) {
+            console.error('[Chat] Intent recognition failed, using fallback:', err);
+             // Fallback
+             recognizedIntent = { intent: 'chat', confidence: 0 };
+        }
+
+        // --- STEP 2: Data Fetching (Pre-Generation) ---
+        // Now use recogzinedIntent to fetch data *before* generating UI
+        
+        if (recognizedIntent.intent === 'poi') {
+            // --- POI Logic ---
+            let poiKeyword = recognizedIntent.extractedKeyword;
+            if (!poiKeyword) {
+                 const cleanMsg = inputMsg.replace(/附近|的|查找|搜索|查看|有没有|推荐|我想去|帮我找|找|一下/g, '').replace(/ting$/i, '').trim();
+                 poiKeyword = cleanMsg;
             }
-
-        } finally {
-            clearInterval(keepAliveInterval);
-        }
-
-        // 5. Logic & Context Enrichment (POI/Weather/Route) - AFTER intent recognition
-        // Now we can use the recognizedIntent to guide data fetching
-
-        // --- POI Logic ---
-        // Use extractedKeyword from intent recognition if available, otherwise use improved cleaning of original input
-        let poiKeyword = recognizedIntent.extractedKeyword;
-        if (!poiKeyword) {
-            const cleanMsg = inputMsg.replace(/附近|的|查找|搜索|查看|有没有|推荐|我想去|帮我找|找|一下/g, '').replace(/ting$/i, '').trim();
-            // Use cleaned message or fallback if empty
-            poiKeyword = cleanMsg;
-        }
-
-        if (lowerMsg.includes('咖啡') || lowerMsg.includes('coffee') || lowerMsg.includes('cafe') ||
-            lowerMsg.includes('附近') || lowerMsg.includes('餐厅') || lowerMsg.includes('商场') ||
-            recognizedIntent.intent === 'poi') {
-            sendText("\n(Searching nearby POIs...)");
-            try {
-                // Default fallback if keyword is still empty but context implies coffee
-                if (!poiKeyword && (lowerMsg.includes('咖啡') || lowerMsg.includes('coffee'))) {
+             if (!poiKeyword && (lowerMsg.includes('咖啡') || lowerMsg.includes('coffee'))) {
                     poiKeyword = '咖啡';
-                }
+             }
 
-                console.log(`[Chat] POI Search: using keyword: "${poiKeyword}" (Original: "${inputMsg}")`);
+             if(poiKeyword) {
+                 sendText(`\n(Searching nearby POIs: ${poiKeyword}...)`);
+                 console.log(`[Chat] POI Search: using keyword: "${poiKeyword}" (Original: "${inputMsg}")`);
+                 try {
+                     let pois = await AmapService.searchPoi(poiKeyword, 'Shanghai', USER_LOCATION);
+                     if (pois.length === 0) {
+                         console.warn('[Chat] No real POIs found. Falling back to Mock Data.');
+                         pois = AmapService.getMockPois(poiKeyword);
+                     }
+                     if (pois.length > 0) {
+                         contextData.pois = pois; // Inject into context
+                     }
+                 } catch(e) {
+                     console.error("POI Search Failed", e);
+                 }
+             }
+        } else if (recognizedIntent.intent === 'weather') {
+             // --- Weather Logic ---
+             let city = 'Shanghai';
+             if (inputMsg.includes('北京')) city = 'Beijing';
+             if (inputMsg.includes('广州')) city = 'Guangzhou';
+             if (inputMsg.includes('深圳')) city = 'Shenzhen';
+             
+             sendText("\n(Fetching weather data...)");
+             try {
+                 const weatherData = await AmapService.getWeather(city, USER_LOCATION);
+                 contextData.weather = weatherData;
+             } catch(e) { console.error("Weather fetch failed", e); }
 
-                // Use USER_LOCATION for "around" search
-                let pois = await AmapService.searchPoi(poiKeyword, 'Shanghai', USER_LOCATION);
-
-                if (pois.length === 0) {
-                    console.warn('[Chat] No real POIs found. Falling back to Mock Data.');
-                    pois = AmapService.getMockPois(poiKeyword);
-                }
-
-                if (pois.length > 0) {
-                    contextData.pois = pois;
-                    additionalInstruction += "\nIMPORTANT: POI data detected. Render a vertical list of cards (using Column) according to 'POI List' example.";
-                }
-            } catch (err) {
-                console.error("POI Search failed", err);
-            }
-        }
-
-        // --- Weather Logic ---
-        const isWeather = lowerMsg.includes('天气') || lowerMsg.includes('weather') || lowerMsg.includes('气温') || recognizedIntent.intent === 'weather';
-        if (isWeather) {
-            let city = 'Shanghai'; // Default context city name (fallback)
-            if (inputMsg.includes('北京')) city = 'Beijing';
-            if (inputMsg.includes('广州')) city = 'Guangzhou';
-            if (inputMsg.includes('深圳')) city = 'Shenzhen';
-
-            console.log(`[Chat] Weather intent detected for city: ${city} (using coords: ${USER_LOCATION})`);
-            sendText("\n(Fetching weather data...)");
-
-            try {
-                const weatherData = await AmapService.getWeather(city, USER_LOCATION);
-                contextData.weather = weatherData;
-            } catch (e) {
-                console.error("Failed to fetch real weather:", e);
-            }
-        }
-
-        // --- Driving Route Logic ---
-        const isRoute = lowerMsg.includes('去') || lowerMsg.includes('到') || lowerMsg.includes('导航') ||
-            lowerMsg.includes('route') || lowerMsg.includes('drive') || recognizedIntent.intent === 'route_planning';
-        if (isRoute) {
-            // Regex to extract "From [A] To [B]" pattern
+        } else if (recognizedIntent.intent === 'route_planning') {
+             // --- Route Logic ---
+             // Extract Origin/Dest logic similar to before...
             const routeRegex = /(?:从|from)\s*([^到\s]+)\s*(?:到|to|去)\s*([^的\s]+)/i;
             const matchRoute = inputMsg.match(routeRegex);
 
-            let origin = USER_LOCATION; // Default to User Location
-            let dest = 'Beijing';       // Default fallback dest
+            let origin = USER_LOCATION;
+            let dest = 'Beijing';
 
             if (matchRoute) {
-                origin = matchRoute[1]; // If user says "From X", use X
+                origin = matchRoute[1]; 
                 dest = matchRoute[2];
             } else {
-                // Try to find reasonable destination from message?
-                // "Go to X", "Drive to X"
-                // Simple split?
-                // e.g. "去外滩"
                 const destMatch = inputMsg.match(/(?:去|到|导航|drive to)\s*([^的\s]+)/i);
-                if (destMatch) {
-                    dest = destMatch[1];
-                }
+                if (destMatch) { dest = destMatch[1]; }
             }
-
-            // If origin is effectively "me" or "here", use USER_LOCATION
             if (origin.includes('我') || origin.includes('这') || origin.toLowerCase().includes('here') || origin.toLowerCase().includes('me')) {
                 origin = USER_LOCATION;
             }
 
-            console.log(`[Chat] Route Intent: From ${origin} To ${dest}`);
             sendText(`\n(Planning route to ${dest}...)`);
-
             try {
-                // 1. Geocode Origin & Dest (If they are not coords)
-                // Check if origin is comma separated (coords)
-                let originCoords = origin;
+                 let originCoords = origin;
                 if (!origin.includes(',')) {
                     const coords = await AmapService.getCoordinates(origin);
                     if (coords) originCoords = coords;
                 }
-
                 let destCoords = dest;
                 if (!dest.includes(',')) {
                     const coords = await AmapService.getCoordinates(dest);
                     if (coords) destCoords = coords;
                 }
-
                 if (originCoords && destCoords) {
-                    // 2. Get Driving Route
                     const routeData = await AmapService.getDrivingRoute(originCoords, destCoords);
-
                     contextData.route = {
                         origin: origin === USER_LOCATION ? 'Current Location' : origin,
                         destination: dest,
                         ...routeData
                     };
-                    additionalInstruction += "\nIMPORTANT: Route data available. Render a Route Card showing Origin, Destination, Distance, Duration, and a simplified Step list.";
-                } else {
-                    console.warn("Could not geocode origin/dest for route");
                 }
-            } catch (e) {
-                console.error("Route Planning failed", e);
-            }
+            } catch(e) { console.error("Route planning failed", e); }
         }
+
+        // --- STEP 3: UI Generation ---
+        
+        let currentDsl = serverState.dsl || null;
+        // Context Awareness Rule: Reset if requested
+        const resetKeywords = ['重新', '再次', '再生成', 'reset', 'again', 'rewrite', 'retry'];
+        if (resetKeywords.some(kw => inputMsg.includes(kw))) {
+             currentDsl = null;
+        }
+
+        // Import IntentTemplateService (Use dynamic import or ensure it is imported at top)
+        const { IntentTemplateService } = require('../ai/IntentTemplateService'); // Or rely on top-level import
+
+        // Generate Prompt using the Intent + Context Data
+        const intentPrompt = IntentTemplateService.getIntentSpecificPrompt(recognizedIntent, inputMsg, contextData, currentDsl);
+
+        // Call LLM
+        const fullResponse = await LLMService.generateUI(intentPrompt, inputMsg, contextData, currentDsl);
+
+        clearInterval(keepAliveInterval);
 
         console.log(`[Chat] [LLM Raw Response]:\n${fullResponse}\n-----------------------------------`);
 
@@ -433,35 +416,138 @@ export const chatOnceHandler = async (req: Request, res: Response) => {
     if (state?.dataContext) {
         serverState.dataContext = state.dataContext;
     }
+    
+    // Ensure dataContext exists
+    if (!serverState.dataContext) serverState.dataContext = {};
+    const contextData = serverState.dataContext;
 
     const lastUserMessage = messages[messages.length - 1]?.content || "";
     const lowerMsg = lastUserMessage.toLowerCase();
+    
+    // User Location from Context (sent by Client)
+    const USER_LOCATION = contextData.location || '121.399641,31.168876'; // Fallback to Shanghai if missing
 
     try {
-        // Weather Data Injection
-        if (lowerMsg.includes('天气') || lowerMsg.includes('weather')) {
-            console.log("Detected Weather intent (once), injecting mock data...");
+        // --- STEP 1: Intent Recognition ---
+        // Get conversation history for context-aware intent recognition
+        const conversationHistory: ConversationTurn[] = serverState.conversationHistory || [];
+        
+        let recognizedIntent: any; 
 
-            if (!serverState.dataContext) serverState.dataContext = {};
+        try {
+            // Recognize Intent FIRST
+            recognizedIntent = await IntentRecognitionService.recognizeIntent(
+                lastUserMessage, 
+                conversationHistory,
+                { maxTurns: 10, enableContextAwareness: true }
+            );
+            console.log(`[ChatOnce] Intent: ${recognizedIntent.intent}`);
 
-            const weatherData = await AmapService.getWeather('上海');
-            Object.assign(serverState.dataContext, weatherData);
+            // Apply Sticky Intent Logic
+            const lastIntent = serverState.lastIntent;
+             if (lastIntent && lastIntent !== 'chat' && lastIntent !== 'unknown') {
+                const modificationKeywords = [
+                  '改成', '换成', '颜色', '变为', 'adjust', 'change', 'color', 'background', 'larger', 'smaller', 'font', 'red', 'green', 'blue', 'purple',
+                  '标题', '文字', '文本', '修改', 'title', 'text', 'size', '字体', '字号', '内容', '大小', 'updated'
+                ];
+                if (modificationKeywords.some(kw => lastUserMessage.includes(kw))) {
+                  if (recognizedIntent.intent === 'chat' || recognizedIntent.intent === 'cartoon_image' || recognizedIntent.confidence < 0.9) {
+                    recognizedIntent.intent = lastIntent;
+                  }
+                }
+              }
+            
+            // Persist intent
+            serverState.lastIntent = recognizedIntent.intent;
+
+        } catch (err) {
+             recognizedIntent = { intent: 'chat', confidence: 0 };
+        }
+
+        // --- STEP 2: Data Fetching (Pre-Generation) ---
+        
+        if (recognizedIntent.intent === 'poi') {
+            let poiKeyword = recognizedIntent.extractedKeyword;
+            if (!poiKeyword) {
+                 const cleanMsg = lastUserMessage.replace(/附近|的|查找|搜索|查看|有没有|推荐|我想去|帮我找|找|一下/g, '').replace(/ting$/i, '').trim();
+                 poiKeyword = cleanMsg;
+            }
+             if (!poiKeyword && (lowerMsg.includes('咖啡') || lowerMsg.includes('coffee'))) {
+                    poiKeyword = '咖啡';
+             }
+
+             if(poiKeyword) {
+                 try {
+                     let pois = await AmapService.searchPoi(poiKeyword, 'Shanghai', USER_LOCATION);
+                     if (pois.length > 0) {
+                         contextData.pois = pois;
+                     } else {
+                         contextData.pois = AmapService.getMockPois(poiKeyword); // Fallback
+                     }
+                 } catch(e) { console.error("POI Search Failed", e); }
+             }
+        } else if (recognizedIntent.intent === 'weather') {
+             let city = 'Shanghai';
+             if (lastUserMessage.includes('北京')) city = 'Beijing';
+             if (lastUserMessage.includes('广州')) city = 'Guangzhou';
+             if (lastUserMessage.includes('深圳')) city = 'Shenzhen';
+             
+             try {
+                 const weatherData = await AmapService.getWeather(city, USER_LOCATION);
+                 contextData.weather = weatherData;
+             } catch(e) { console.error("Weather fetch failed", e); }
+
+        } else if (recognizedIntent.intent === 'route_planning') {
+            const routeRegex = /(?:从|from)\s*([^到\s]+)\s*(?:到|to|去)\s*([^的\s]+)/i;
+            const matchRoute = lastUserMessage.match(routeRegex);
+
+            let origin = USER_LOCATION;
+            let dest = 'Beijing';
+
+            if (matchRoute) {
+                origin = matchRoute[1]; 
+                dest = matchRoute[2];
+            } else {
+                const destMatch = lastUserMessage.match(/(?:去|到|导航|drive to)\s*([^的\s]+)/i);
+                if (destMatch) { dest = destMatch[1]; }
+            }
+            if (origin.includes('我') || origin.includes('这') || origin.toLowerCase().includes('here') || origin.toLowerCase().includes('me')) {
+                origin = USER_LOCATION;
+            }
+
+            try {
+                 let originCoords = origin;
+                if (!origin.includes(',')) {
+                    const coords = await AmapService.getCoordinates(origin);
+                    if (coords) originCoords = coords;
+                }
+                let destCoords = dest;
+                if (!dest.includes(',')) {
+                    const coords = await AmapService.getCoordinates(dest);
+                    if (coords) destCoords = coords;
+                }
+                if (originCoords && destCoords) {
+                    const routeData = await AmapService.getDrivingRoute(originCoords, destCoords);
+                    contextData.route = {
+                        origin: origin === USER_LOCATION ? 'Current Location' : origin,
+                        destination: dest,
+                        ...routeData
+                    };
+                }
+            } catch(e) { console.error("Route planning failed", e); }
         }
 
         const currentDsl = serverState.dsl || null;
-        // Use intent-aware generation with conversation history for once handler as well
-        const result = await LLMService.generateUIWithIntent(
-            lastUserMessage,
-            serverState.dataContext || {},
-            currentDsl,
-            serverState.lastIntent,
-            serverState.conversationHistory
-        );
-        const dslString = result.dsl;
+        
+        // Import IntentTemplateService (dynamic or top-level)
+        const { IntentTemplateService } = require('../ai/IntentTemplateService');
 
-        if (result.intent && result.intent.intent) {
-            serverState.lastIntent = result.intent.intent;
-        }
+        // Generate Prompt using the Intent + Context Data
+        const intentPrompt = IntentTemplateService.getIntentSpecificPrompt(recognizedIntent, lastUserMessage, contextData, currentDsl);
+
+        // Call LLM
+        const fullResponse = await LLMService.generateUI(intentPrompt, lastUserMessage, contextData, currentDsl);
+        const dslString = fullResponse;
 
         // Save conversation history
         serverState.conversationHistory.push({
@@ -478,9 +564,12 @@ export const chatOnceHandler = async (req: Request, res: Response) => {
 
         let dslObject: any;
         try {
-            dslObject = JSON.parse(dslString);
+            // Try to extract JSON if mixed with text
+            const match = dslString.match(/```json([\s\S]*?)```/);
+            const cleanDsl = match ? match[1] : dslString;
+            dslObject = JSON.parse(cleanDsl);
         } catch (e: any) {
-            return res.status(200).json({ sessionId, patch: [], note: 'Invalid JSON from LLM; ignored' });
+            return res.status(200).json({ sessionId, patch: [], note: 'Invalid JSON from LLM; ignored', raw: dslString });
         }
 
         const hadOld = Object.prototype.hasOwnProperty.call(serverState, 'dsl') && serverState.dsl != null;
