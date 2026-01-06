@@ -757,7 +757,8 @@ export class LLMService {
             { role: "system", content: "You are a helpful assistant. Please respond with valid JSON." },
             { role: "user", content: prompt }
           ],
-          response_format: { type: "json_object" }
+          response_format: { type: "json_object" },
+          enable_search: true
         }),
         signal: controller.signal
       });

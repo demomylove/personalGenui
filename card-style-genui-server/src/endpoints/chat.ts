@@ -270,10 +270,40 @@ export const chatHandler = async (req: Request, res: Response) => {
                     contextData.route = {
                         origin: origin === USER_LOCATION ? 'Current Location' : origin,
                         destination: dest,
+                        originLocation: originCoords,
+                        destinationLocation: destCoords,
                         ...routeData
                     };
                 }
             } catch(e) { console.error("Route planning failed", e); }
+        } else if (recognizedIntent.intent === 'cartoon_image') {
+            // --- Image Generation Logic ---
+            sendText(`\n(Generating image for: "${inputMsg}"...)`);
+            const { AliyunImageService } = require('../services/AliyunImageService');
+            try {
+                // Use extracted entities for better prompt if available, else inputMsg
+                // For cartoon_image, prompt is key.
+                const imagePrompt = inputMsg; 
+                const imageUrl = await AliyunImageService.generateImage(imagePrompt);
+                
+                if (imageUrl) {
+                    contextData.generatedImage = {
+                        url: imageUrl,
+                        prompt: imagePrompt
+                    };
+                    console.log(`[Chat] Image generated: ${imageUrl}`);
+                } else {
+                    sendText("\n(Image generation failed, using placeholder)");
+                }
+            } catch (e) {
+                console.error("Image generation error", e);
+            }
+        } else if (recognizedIntent.intent === 'flight') {
+             // --- Flight/Train Logic ---
+             // No specific service to call. We rely on LLM's 'enable_search: true' (Qwen-Flash/Max).
+             // Just pass through.
+             sendText(`\n(Searching for flight/train info: "${inputMsg}"...)`);
+             console.log(`[Chat] Flight Intent: Delegating to LLM with Search.`);
         }
 
         // --- STEP 3: UI Generation ---

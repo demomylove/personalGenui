@@ -64,6 +64,8 @@ type Component = {
         return this.getCartoonImagePrompt(userQuery, dataContext, currentDsl);
       case IntentType.CAR_CONTROL:
         return this.getCarControlPrompt(userQuery, dataContext, currentDsl, intentResult?.carControlSubType);
+      case IntentType.FLIGHT:
+        return this.getFlightPrompt(userQuery, dataContext, currentDsl);
       case IntentType.CHAT:
         return this.getChatPrompt(userQuery, dataContext, currentDsl);
       default:
@@ -423,6 +425,7 @@ Output:
 - 简洁的卡片布局
 - 居中显示生成的图片
 - 包含描述文字
+- **关键**: 如果数据上下文中存在 'generatedImage'，必须使用 'generatedImage.url' 作为图片地址。
 
 ## 示例
 用户: "画一只可爱的小狗"
@@ -435,27 +438,30 @@ Output:
       "component_type": "Card",
       "properties": { 
         "background_color": "#FFFFFF",
-        "padding": 24, 
+        "padding": 16, 
         "shape_border_radius": 24, 
         "elevation": 4,
-        "width": 380
+        "width": 360,
+        "height": 360
       },
       "children": [
         {
           "component_type": "Column",
-          "properties": { "cross_axis_alignment": "center", "spacing": 16 },
+          "properties": { "cross_axis_alignment": "center", "spacing": 12 },
           "children": [
-            { "component_type": "Text", "properties": { "text": "为您生成的卡通图片:", "font_size": 20, "font_weight": "bold", "color": "#333333" } },
+            { "component_type": "Text", "properties": { "text": "已生成", "font_size": 16, "font_weight": "bold", "color": "#333333" } },
             { 
               "component_type": "Image", 
               "properties": { 
                 "source": "https://loremflickr.com/800/600/dog?lock=5678",
-                "width": "100%",
-                "height": 320,
+                "width": 328,
+                "height": 280,
                 "content_fit": "cover",
                 "border_radius": 16
               } 
             }
+          ]
+        }
           ]
         }
       ]
@@ -726,6 +732,101 @@ Output:
 当前DSL: ${currentDsl ? JSON.stringify(currentDsl, null, 2) : "无"}
 
 请生成合适的界面来响应用户查询。
+`;
+  }
+  /**
+   * 航班/行程信息模板
+   * 依赖LLM的联网搜索能力获取实时数据
+   */
+  private static getFlightPrompt(userQuery: string, dataContext: any, currentDsl?: any): string {
+    return `
+# 行程信息界面设计指南 (Web Search Enabled)
+
+## 任务背景
+用户正在查询航班或高铁/火车行程信息。
+**关键能力**: 你拥有联网搜索能力 (enable_search=true)。如果 \`dataContext\` 中没有提供具体的行程数据，**请立即利用你的搜索能力获取最新的实时班次、时间、状态等信息**。
+
+## 设计风格
+- 航空/商务风格
+- 航班使用蓝色系 (#1E88E5)
+- 高铁使用绿色或深色系 (#2E7D32 或 #37474F)
+- 清晰的信息层级: 出发/到达时间最显著
+
+## 布局结构 (Card)
+  - 顶部: 航空公司/列车号 + 日期 + 状态 (正常/延误)
+  - 中间: 
+    - 左侧: 出发时间 (特大) + 机场/车站
+    - 中间: 箭头 + 时长/经停
+    - 右侧: 到达时间 (特大) + 机场/车站
+  - 底部: 登机口/检票口 + 行李/座位信息
+
+## 示例
+用户: "查询MU5138"
+(你通过搜索得知: MU5138 北京首都->上海虹桥, 08:00-10:15, 准点)
+输出:
+{
+  "component_type": "Center",
+  "properties": { "background_color": "#FFFFFF" },
+  "children": [
+    {
+      "component_type": "Card",
+      "properties": { "background_color": "#E3F2FD", "padding": 20, "shape_border_radius": 16, "width": 380 },
+      "children": [
+        {
+          "component_type": "Column",
+          "properties": { "spacing": 16 },
+          "children": [
+             { 
+               "component_type": "Row", 
+               "properties": { "main_axis_alignment": "space_between" },
+               "children": [
+                 { "component_type": "Text", "properties": { "text": "东方航空 MU5138", "font_weight": "bold", "color": "#1565C0" } },
+                 { "component_type": "Text", "properties": { "text": "2025-10-01 🟢 准点", "color": "#2E7D32" } }
+               ]
+             },
+             {
+               "component_type": "Row",
+               "properties": { "main_axis_alignment": "space_between", "cross_axis_alignment": "center" },
+               "children": [
+                 {
+                   "component_type": "Column",
+                   "properties": { "cross_axis_alignment": "center" },
+                   "children": [
+                     { "component_type": "Text", "properties": { "text": "08:00", "font_size": 32, "font_weight": "bold", "color": "#333" } },
+                     { "component_type": "Text", "properties": { "text": "北京首都 T2", "font_size": 14, "color": "#666" } }
+                   ]
+                 },
+                 {
+                   "component_type": "Column",
+                   "properties": { "cross_axis_alignment": "center" },
+                   "children": [
+                     { "component_type": "Text", "properties": { "text": "2h 15m", "font_size": 12, "color": "#999" } },
+                     { "component_type": "Text", "properties": { "text": "──────✈─────", "color": "#1565C0" } }
+                   ]
+                 },
+                 {
+                   "component_type": "Column",
+                   "properties": { "cross_axis_alignment": "center" },
+                   "children": [
+                     { "component_type": "Text", "properties": { "text": "10:15", "font_size": 32, "font_weight": "bold", "color": "#333" } },
+                     { "component_type": "Text", "properties": { "text": "上海虹桥 T2", "font_size": 14, "color": "#666" } }
+                   ]
+                 }
+               ]
+             }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+# 当前任务
+用户查询: "${userQuery}"
+数据上下文: ${JSON.stringify(dataContext, null, 2)}
+(注意: 如果上下文为空，请务必使用你的搜索能力获取实时信息并填入UI)
+
+请根据行程信息界面设计指南生成界面。
 `;
   }
 }

@@ -12,6 +12,7 @@ export enum IntentType {
     ROUTE_PLANNING = 'route_planning',
     CARTOON_IMAGE = 'cartoon_image',
     CAR_CONTROL = 'car_control',
+    FLIGHT = 'flight',
     CHAT = 'chat',
     UNKNOWN = 'unknown'
 }
@@ -165,7 +166,8 @@ export class IntentRecognitionService {
         prompt += `4. **route_planning** - 路线规划、导航相关的意图\n`;
         prompt += `5. **cartoon_image** - 生成、绘制图片相关的意图\n`;
         prompt += `6. **car_control** - 车控相关的意图（包括空调、车窗、座椅、灯光等车辆控制）\n`;
-        prompt += `7. **chat** - 普通聊天对话\n\n`;
+        prompt += `7. **flight** - 航班查询、高铁/火车查询相关的意图\n`;
+        prompt += `8. **chat** - 普通聊天对话\n\n`;
 
         prompt += `## 车控子类型定义（当意图为 car_control 时）\n\n`;
         prompt += `当识别为车控意图时，请进一步识别具体的控制类型：\n\n`;
@@ -255,6 +257,7 @@ export class IntentRecognitionService {
             'route_planning': IntentType.ROUTE_PLANNING,
             'cartoon_image': IntentType.CARTOON_IMAGE,
             'car_control': IntentType.CAR_CONTROL,
+            'flight': IntentType.FLIGHT,
             'chat': IntentType.CHAT,
             'unknown': IntentType.UNKNOWN
         };
@@ -372,6 +375,17 @@ export class IntentRecognitionService {
                 extractedEntities: {},
                 carControlSubType: carControlSubType,
                 reasoning: `关键词匹配（无上下文）：车控相关 (${carControlSubType})`
+            };
+        }
+
+        // 航班/高铁关键词
+        if (lowerInput.includes('航班') || lowerInput.includes('飞') || lowerInput.includes('机票') || 
+            lowerInput.includes('高铁') || lowerInput.includes('火车') || lowerInput.includes('车次')) {
+            return {
+                intent: IntentType.FLIGHT,
+                confidence: 0.5,
+                extractedEntities: {},
+                reasoning: '关键词匹配（无上下文）：航班/高铁查询'
             };
         }
 
