@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Message Types - A2UI 文档</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; color: #24292e; }
+        h1, h2, h3 { color: #24292e; margin-top: 24px; margin-bottom: 16px; }
+        h1 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        code { background-color: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 85%; }
+        pre { background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
+        pre code { background-color: transparent; padding: 0; font-size: 100%; }
+        a { color: #0366d6; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        ul { padding-left: 2em; }
+        li { margin-top: 0.25em; }
+        table { border-collapse: collapse; margin-bottom: 1em; width: 100%; }
+        th, td { border: 1px solid #dfe2e5; padding: 0.6em 1em; }
+        th { background-color: #f6f8fa; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<h1>消息类型 (Message Types)</h1>
+
+<p>本参考提供了所有 A2UI 消息类型的详细文档。</p>
+
+<h2>消息格式</h2>
+
+<p>所有 A2UI 消息都是作为 JSON Lines (JSONL) 发送的 JSON 对象。每一行包含且仅包含一条消息，每条消息包含且仅包含以下四个键之一：</p>
+
+<ul>
+<li><code>beginRendering</code></li>
+<li><code>surfaceUpdate</code></li>
+<li><code>dataModelUpdate</code></li>
+<li><code>deleteSurface</code></li>
+</ul>
+
+<h2>beginRendering</h2>
+
+<p>向客户端发出信号，表明它有足够的信息来执行 surface 的初始渲染。</p>
+
+<h3>Schema</h3>
+
+<pre><code class="language-typescript">{
+  beginRendering: {
+    surfaceId: string;      // Required: Unique surface identifier
+    root: string;           // Required: The ID of the root component to render
+    catalogId?: string;     // Optional: URL of component catalog
+    styles?: object;        // Optional: Styling information
+  }
+}
+</code></pre>
+
+<h3>属性</h3>
+
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>surfaceId</code></td>
+<td>string</td>
+<td>✅</td>
+<td>此 surface 的唯一标识符。</td>
+</tr>
+<tr>
+<td><code>root</code></td>
+<td>string</td>
+<td>✅</td>
+<td>此 surface 的 UI 树根组件的 <code>id</code>。</td>
+</tr>
+<tr>
+<td><code>catalogId</code></td>
+<td>string</td>
+<td>❌</td>
+<td>组件目录的标识符。如果省略，默认为 v0.8 标准目录。</td>
+</tr>
+<tr>
+<td><code>styles</code></td>
+<td>object</td>
+<td>❌</td>
+<td>目录定义的 UI 样式信息。</td>
+</tr>
+</tbody>
+</table>
+
+<h3>示例</h3>
+
+<p><strong>基本渲染信号：</strong></p>
+
+<pre><code class="language-json">{
+  "beginRendering": {
+    "surfaceId": "main",
+    "root": "root-component"
+  }
+}
+</code></pre>
+
+<p><strong>使用自定义目录：</strong></p>
+
+<pre><code class="language-json">{
+  "beginRendering": {
+    "surfaceId": "custom-ui",
+    "root": "root-custom",
+    "catalogId": "https://my-company.com/a2ui/v0.8/my_custom_catalog.json"
+  }
+}
+</code></pre>
+
+<h3>使用说明</h3>
+
+<ul>
+<li>必须在客户端收到根组件及其初始子级的组件定义后发送。</li>
+<li>客户端应缓冲 <code>surfaceUpdate</code> 和 <code>dataModelUpdate</code> 消息，并且仅在收到相应的 <code>beginRendering</code> 消息后才渲染 surface 的 UI。</li>
+</ul>
+
+<hr>
+
+<h2>surfaceUpdate</h2>
+
+<p>在 surface 内添加或更新组件。</p>
+
+<h3>Schema</h3>
+
+<pre><code class="language-typescript">{
+  surfaceUpdate: {
+    surfaceId: string;        // Required: Target surface
+    components: Array&lt;{       // Required: List of components
+      id: string;             // Required: Component ID
+      component: {            // Required: Wrapper for component data
+        [ComponentType]: {    // Required: Exactly one component type
+          ...properties       // Component-specific properties
+        }
+      }
+    }&gt;
+  }
+}
+</code></pre>
+
+<h3>属性</h3>
+
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>surfaceId</code></td>
+<td>string</td>
+<td>✅</td>
+<td>要更新的 surface 的 ID</td>
+</tr>
+<tr>
+<td><code>components</code></td>
+<td>array</td>
+<td>✅</td>
+<td>组件定义数组</td>
+</tr>
+</tbody>
+</table>
+
+<h3>组件对象</h3>
+
+<p><code>components</code> 数组中的每个对象必须具有：</p>
+
+<ul>
+<li><code>id</code> (string, required): surface 内的唯一标识符</li>
+<li><code>component</code> (object, required): 一个包装器对象，包含且仅包含一个键，即组件类型（例如，<code>Text</code>, <code>Button</code>）。</li>
+</ul>
+
+<h3>示例</h3>
+
+<p><strong>单个组件：</strong></p>
+
+<pre><code class="language-json">{
+  "surfaceUpdate": {
+    "surfaceId": "main",
+    "components": [
+      {
+        "id": "greeting",
+        "component": {
+          "Text": {
+            "text": {"literalString": "Hello, World!"},
+            "usageHint": "h1"
+          }
+        }
+      }
+    ]
+  }
+}
+</code></pre>
+
+<p><strong>多个组件 (邻接表):</strong></p>
+
+<pre><code class="language-json">{
+  "surfaceUpdate": {
+    "surfaceId": "main",
+    "components": [
+      {
+        "id": "root",
+        "component": {
+          "Column": {
+            "children": {"explicitList": ["header", "body"]}
+          }
+        }
+      },
+      {
+        "id": "header",
+        "component": {
+          "Text": {
+            "text": {"literalString": "Welcome"}
+          }
+        }
+      },
+      {
+        "id": "body",
+        "component": {
+          "Card": {
+            "child": "content"
+          }
+        }
+      },
+      {
+        "id": "content",
+        "component": {
+          "Text": {
+            "text": {"path": "/message"}
+          }
+        }
+      }
+    ]
+  }
+}
+</code></pre>
+
+<p><strong>更新现有组件：</strong></p>
+
+<pre><code class="language-json">{
+  "surfaceUpdate": {
+    "surfaceId": "main",
+    "components": [
+      {
+        "id": "greeting",
+        "component": {
+          "Text": {
+            "text": {"literalString": "Hello, Alice!"},
+            "usageHint": "h1"
+          }
+        }
+      }
+    ]
+  }
+}
+</code></pre>
+
+<p><code>id: "greeting"</code> 的组件被更新（不是重复）。</p>
+
+<h3>使用说明 (Usage Notes)</h3>
+
+<ul>
+<li>必须在 <code>beginRendering</code> 消息中指定一个组件作为 <code>root</code> 以作为树的根。</li>
+<li>组件形成邻接表（带有 ID 引用的扁平结构）。</li>
+<li>发送具有现有 ID 的组件会更新该组件。</li>
+<li>通过 ID 引用子级。</li>
+<li>可以增量添加组件（流式传输）。</li>
+</ul>
+
+<h3>错误 (Errors)</h3>
+
+<table>
+<thead>
+<tr>
+<th>Error</th>
+<th>Cause</th>
+<th>Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Surface not found</td>
+<td><code>surfaceId</code> 不存在</td>
+<td>确保对给定的 surface 始终使用唯一的 <code>surfaceId</code>。Surfaces 在第一次更新时隐式创建。</td>
+</tr>
+<tr>
+<td>Invalid component type</td>
+<td>未知的组件类型</td>
+<td>检查组件类型是否存在于协商的目录中。</td>
+</tr>
+<tr>
+<td>Invalid property</td>
+<td>此类型不存在该属性</td>
+<td>根据目录 schema 验证。</td>
+</tr>
+<tr>
+<td>Circular reference</td>
+<td>组件将自身引用为子级</td>
+<td>修复组件层级。</td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2>dataModelUpdate</h2>
+
+<p>更新组件绑定的数据模型。</p>
+
+<h3>Schema</h3>
+
+<pre><code class="language-typescript">{
+  dataModelUpdate: {
+    surfaceId: string;      // Required: Target surface
+    path?: string;          // Optional: Path to a location in the model
+    contents: Array&lt;{       // Required: Data entries
+      key: string;
+      valueString?: string;
+      valueNumber?: number;
+      valueBoolean?: boolean;
+      valueMap?: Array&lt;{...}&gt;;
+    }&gt;
+  }
+}
+</code></pre>
+
+<h3>属性</h3>
+
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>surfaceId</code></td>
+<td>string</td>
+<td>✅</td>
+<td>要更新的 surface 的 ID。</td>
+</tr>
+<tr>
+<td><code>path</code></td>
+<td>string</td>
+<td>❌</td>
+<td>数据模型内位置的路径（例如 'user'）。如果省略，则更新应用于根。</td>
+</tr>
+<tr>
+<td><code>contents</code></td>
+<td>array</td>
+<td>✅</td>
+<td>作为邻接表的数据项数组。每个条目都有一个 <code>key</code> 和一个类型的 <code>value*</code> 属性。</td>
+</tr>
+</tbody>
+</table>
+
+<h3><code>contents</code> 邻接表</h3>
+
+<p><code>contents</code> 数组是一个键值对列表。数组中的每个对象必须有一个 <code>key</code> 和且仅有一个 <code>value*</code> 属性 (<code>valueString</code>, <code>valueNumber</code>, <code>valueBoolean</code>, 或 <code>valueMap</code>)。这种结构对 LLM 友好，并避免了从通用 <code>value</code> 字段推断类型的问题。</p>
+
+<h3>示例</h3>
+
+<p><strong>初始化整个模型：</strong></p>
+
+<p>如果省略 <code>path</code>，<code>contents</code> 将替换 surface 的整个数据模型。</p>
+
+<pre><code class="language-json">{
+  "dataModelUpdate": {
+    "surfaceId": "main",
+    "contents": [
+      {
+        "key": "user",
+        "valueMap": [
+          { "key": "name", "valueString": "Alice" },
+          { "key": "email", "valueString": "alice@example.com" }
+        ]
+      },
+      { "key": "items", "valueMap": [] }
+    ]
+  }
+}
+</code></pre>
+
+<p><strong>更新嵌套属性：</strong></p>
+
+<p>如果提供了 <code>path</code>，<code>contents</code> 将更新该位置的数据。</p>
+
+<pre><code class="language-json">{
+  "dataModelUpdate": {
+    "surfaceId": "main",
+    "path": "user",
+    "contents": [
+      { "key": "email", "valueString": "alice@newdomain.com" }
+    ]
+  }
+}
+</code></pre>
+
+<p>这将更改 <code>/user/email</code> 而不影响 <code>/user/name</code>。</p>
+
+<h3>使用说明</h3>
+
+<ul>
+<li>数据模型是针对每个 surface 的。</li>
+<li>当绑定的数据更改时，组件会自动重新渲染。</li>
+<li>最好对特定路径进行细粒度更新，而不是替换整个模型。</li>
+<li>数据模型是一个普通的 JSON 对象。</li>
+<li>任何数据转换（例如，格式化日期）必须在发送 <code>dataModelUpdate</code> 消息之前由服务器完成。</li>
+</ul>
+
+<hr>
+
+<h2>deleteSurface</h2>
+
+<p>移除 surface 及其所有组件和数据。</p>
+
+<h3>Schema</h3>
+
+<pre><code class="language-typescript">{
+  deleteSurface: {
+    surfaceId: string;        // Required: Surface to delete
+  }
+}
+</code></pre>
+
+<h3>属性</h3>
+
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>surfaceId</code></td>
+<td>string</td>
+<td>✅</td>
+<td>要删除的 surface 的 ID</td>
+</tr>
+</tbody>
+</table>
+
+<h3>示例</h3>
+
+<p><strong>删除一个 surface：</strong></p>
+
+<pre><code class="language-json">{
+  "deleteSurface": {
+    "surfaceId": "modal"
+  }
+}
+</code></pre>
+
+<p><strong>删除多个 surface：</strong></p>
+
+<pre><code class="language-json">{"deleteSurface": {"surfaceId": "sidebar"}}
+{"deleteSurface": {"surfaceId": "content"}}
+</code></pre>
+
+<h3>使用说明</h3>
+
+<ul>
+<li>移除与该 surface 关联的所有组件</li>
+<li>清除该 surface 的数据模型</li>
+<li>客户端应从 UI 中移除该 surface</li>
+<li>删除不存在的 surface 是安全的（无操作）</li>
+<li>在关闭模态框、对话框或离开导航时使用</li>
+</ul>
+
+<h3>错误</h3>
+
+<table>
+<thead>
+<tr>
+<th>Error</th>
+<th>Cause</th>
+<th>Solution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>(None - deletes are idempotent)</td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2>消息排序 (Message Ordering)</h2>
+
+<h3>要求</h3>
+
+<ol>
+<li><code>beginRendering</code> 必须在该 surface 的初始 <code>surfaceUpdate</code> 消息之后。</li>
+<li><code>surfaceUpdate</code> 可以在 <code>dataModelUpdate</code> 之前或之后。</li>
+<li>不同 surface 的消息是独立的。</li>
+<li>多条消息可以增量更新同一个 surface。</li>
+</ol>
+
+<h3>推荐顺序</h3>
+
+<pre><code class="language-jsonl">{"surfaceUpdate": {"surfaceId": "main", "components": [...]}}
+{"dataModelUpdate": {"surfaceId": "main", "contents": {...}}}
+{"beginRendering": {"surfaceId": "main", "root": "root-id"}}
+</code></pre>
+
+<h3>渐进式构建</h3>
+
+<pre><code class="language-jsonl">{"surfaceUpdate": {"surfaceId": "main", "components": [...]}}  // Header
+{"surfaceUpdate": {"surfaceId": "main", "components": [...]}}  // Body
+{"beginRendering": {"surfaceId": "main", "root": "root-id"}} // Initial render
+{"surfaceUpdate": {"surfaceId": "main", "components": [...]}}  // Footer (after initial render)
+{"dataModelUpdate": {"surfaceId": "main", "contents": {...}}}   // Populate data
+</code></pre>
+
+<h2>验证 (Validation)</h2>
+
+<p>所有消息应针对以下内容进行验证：</p>
+
+<ul>
+<li><strong><a href="https://github.com/google/A2UI/blob/main/specification/0.8/json/server_to_client.json">server_to_client.json</a></strong>: 消息信封 Schema</li>
+<li><strong><a href="https://github.com/google/A2UI/blob/main/specification/0.8/json/standard_catalog_definition.json">standard_catalog_definition.json</a></strong>: 组件 Schemas</li>
+</ul>
+
+<h2>延伸阅读</h2>
+
+<ul>
+<li><strong><a href="components.html">组件库</a></strong>: 所有可用的组件类型</li>
+<li><strong><a href="../concepts/data-binding.html">数据绑定指南</a></strong>: 数据绑定如何工作</li>
+<li><strong><a href="../guides/agent-development.html">代理开发指南</a></strong>: 生成有效消息</li>
+</ul>
+
+</body>
+</html>

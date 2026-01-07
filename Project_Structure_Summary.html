@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IC_NM_GenUIKit 项目架构解析</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #0066cc;
+            --bg-color: #f9f9f9;
+            --text-color: #333;
+            --code-bg: #f5f5f5;
+            --card-bg: #ffffff;
+            --border-color: #eaeaea;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 40px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+        h1 {
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+            color: #1a1a1a;
+        }
+        h2 {
+            color: var(--primary-color);
+            margin-top: 40px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--primary-color);
+            padding-left: 12px;
+        }
+        h3 {
+            color: #444;
+            margin-top: 25px;
+        }
+        ul, ol {
+            padding-left: 24px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        code {
+            background-color: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 0.9em;
+            color: #d63384;
+        }
+        pre {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #e0e0e0;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f5f7fa;
+            width: 25%;
+        }
+        .note {
+            background-color: #e6f3ff;
+            border-left: 4px solid #0066cc;
+            padding: 15px;
+            border-radius: 0 4px 4px 0;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>IC_NM_GenUIKit 项目架构解析</h1>
+    <p>本文档旨在总结本项目 (React Native 端) 的核心架构、目录结构、关键模块及其交互流程，特别聚焦于 A2UI 协议的流式生成机制。</p>
+
+    <h2>一、项目核心理念</h2>
+    <div class="note">
+        <strong>State-Driven UI (状态驱动界面)</strong><br>
+        本项目抛弃了传统的命令式 UI 开发模式。界面不是画出来的，而是“算”出来的。<br>
+        <code>UI = f(State)</code><br>
+        客户端不仅是一个显示器，更是一个渲染引擎。它接收服务端推送的 DSL (Domain Specific Language) 数据，动态生成原生组件树。
+    </div>
+
+    <h2>二、目录结构解析</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>路径</th>
+                <th>说明</th>
+                <th>关键文件</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>src/screens/</code></td>
+                <td><strong>UI 入口层</strong><br>包含应用的主要页面组件。</td>
+                <td>
+                    <ul>
+                        <li><code>MainScreen.tsx</code>: 应用主控制器。负责状态管理、网络请求发起、消息列表渲染。</li>
+                        <li><code>ChatScreen.tsx</code>: (备用/测试) 另一个聊天界面实现。</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>src/utils/</code></td>
+                <td><strong>通信层 & 工具层</strong><br>负责与服务端交互的核心逻辑。</td>
+                <td>
+                    <ul>
+                        <li><code>AGUIClient.ts</code>: <strong>核心通信模块</strong>。封装了 SSE 长连接、JSON Patch 合并算法、事件分发。</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>src/dsl/</code></td>
+                <td><strong>渲染引擎层</strong><br>负责将 JSON DSL 转换为 React 组件。</td>
+                <td>
+                    <ul>
+                        <li><code>DslRenderer.tsx</code>: <strong>递归渲染器</strong>。<code>renderComponent</code> 函数所在地，负责遍历 DSL 树。</li>
+                        <li><code>WidgetMapper.tsx</code>: <strong>组件映射表</strong>。定义了 <code>type: "button"</code> 对应哪个 RN 原生组件。</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><code>src/components/</code></td>
+                <td><strong>原子组件库</strong><br>构成界面的基础积木。</td>
+                <td>
+                    <ul>
+                        <li><code>TaskCard.tsx</code>、<code>VoiceInput.tsx</code>: 业务相关复用组件。</li>
+                        <li><code>IntentionBlurView.tsx</code>: 视觉效果组件。</li>
+                    </ul>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>三、核心数据流向 (Data Flow)</h2>
+    <p>下图展示了从用户发起请求，到服务端流式响应，再到客户端动态渲染的完整闭环。</p>
+
+    <div class="mermaid">
+sequenceDiagram
+    participant User as 👤 User
+    participant Main as 📱 MainScreen (Store)
+    participant Client as 🔌 AGUIClient (Net)
+    participant Renderer as 🎨 DslRenderer
+    participant Server as ☁️ Cloud (A2UI)
+
+    Note over User, Server: 阶段一：发起交互
+    User->>Main: 1. 语音/文本输入
+    Main->>Main: setStatus('thinking')
+    Main->>Client: 2. sendMessage(prompt)
+    Client->>Server: HTTP POST (SSE Connect)
+
+    Note over User, Server: 阶段二：流式接收与状态合并
+    loop Infinite Stream (Thinking & Generating)
+        Server-->>Client: 3. Event: STATE_DELTA (Patch)
+        Client->>Client: apply_patch(oldState, patch) -> newState
+        Client->>Main: 4. onStateUpdate(newState)
+    end
+
+    Note over User, Server: 阶段三：状态驱动重绘
+    rect rgb(240, 248, 255)
+        Note right of Main: The React Render Cycle
+        Main->>Main: 5. setAgentState(newState) [触发重绘]
+        Main-->>Renderer: 6. renderComponent(newState.dsl) [开始递归]
+        Renderer-->>Renderer: 递归遍历 DSL JSON 树
+        Renderer-->>Main: 返回 React Element Tree
+        Main-->>User: 7. 屏幕界面刷新 (Native Views Update)
+    end
+    </div>
+
+    <h2>四、关键技术点分析</h2>
+
+    <h3>4.1 AGUIClient (通信中枢)</h3>
+    <p>它不只是一个 HTTP 客户端，它是一个<strong>状态机同步器</strong>。</p>
+    <ul>
+        <li><strong>长连接</strong>：使用 Server-Sent Events (SSE) 协议，允许服务端单向持续推送数据。</li>
+        <li><strong>增量更新</strong>：服务端发送的是 JSON Patch (RFC 6902)，这大大减少了网络流量。<code>AGUIClient</code> 负责把这些碎片拼成完整的 JSON 对象。</li>
+    </ul>
+
+    <h3>4.2 MainScreen (状态大脑)</h3>
+    <p>它是整个应用的<strong>单一数据源 (Single Source of Truth)</strong>。</p>
+    <ul>
+        <li><code>agentState</code>：这个变量存储了服务端下发的所有信息（当前 DSL 结构、数据上下文等）。</li>
+        <li><strong>生命周期管理</strong>：它控制了从 <code>thinking</code> (思考中) -> <code>drawing</code> (绘制中) -> <code>completed</code> (完成) 的全过程。</li>
+    </ul>
+
+    <h3>4.3 DslRenderer (生成引擎)</h3>
+    <p>它是连接“数据”与“UI”的桥梁。</p>
+    <ul>
+        <li><strong>递归逻辑</strong>：通过深度优先遍历 (DFS) 算法，把嵌套的 JSON 树转化为嵌套的 React 组件树。</li>
+        <li><strong>动态性</strong>：它不存在任何硬编码的业务逻辑。它只认识 DSL 规范（如 <code>Column</code>, <code>Text</code>），这使得服务端可以下发任何全新的界面而无需客户端发版。</li>
+    </ul>
+
+    <h2>五、当前架构的优劣势</h2>
+    
+    <h3>优势 ✅</h3>
+    <ul>
+        <li><strong>极致灵活</strong>：Server 端改一行 JSON，Client 端界面立刻变，无需审核发版 (OTA)。</li>
+        <li><strong>多端统一</strong>：如果是标准 A2UI 协议，同一套 DSL 可以同时渲染在 iOS, Android, Web 上。</li>
+        <li><strong>开发解耦</strong>：前端只负责开发原子组件（积木块），后端负责搭建页面（搭积木）。</li>
+    </ul>
+
+    <h3>挑战 ⚠️</h3>
+    <ul>
+        <li><strong>性能瓶颈</strong>：目前的“全量状态替换 + 全量递归重绘”机制，在节点数激增（>500）时会阻塞 JS 线程，导致掉帧。</li>
+        <li><strong>交互延迟</strong>：点击事件需跨越 Bridge 到 JS 再到 Native，链路较长。</li>
+        <li><strong>体验打磨</strong>：流式生成的视觉效果（如 Loading 态、生长动画）很大程度上依赖于服务端推送的节奏控制和客户端的平滑处理。</li>
+    </ul>
+
+    <script>
+        mermaid.initialize({ startOnLoad: true });
+    </script>
+</div>
+
+</body>
+</html>

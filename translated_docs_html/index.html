@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Protocol for Agent-Driven Interfaces - A2UI 文档</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; color: #24292e; }
+        h1, h2, h3 { color: #24292e; margin-top: 24px; margin-bottom: 16px; }
+        h1 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        code { background-color: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 85%; }
+        pre { background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
+        pre code { background-color: transparent; padding: 0; font-size: 100%; }
+        a { color: #0366d6; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        ul { padding-left: 2em; }
+        li { margin-top: 0.25em; }
+        blockquote { color: #6a737d; border-left: 0.25em solid #dfe2e5; padding: 0 1em; margin: 0; }
+        .warning { background-color: #fffbe6; border: 1px solid #ffe58f; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        .card { border: 1px solid #e1e4e8; border-radius: 6px; padding: 16px; margin-bottom: 16px; }
+        img { max-width: 100%; }
+    </style>
+</head>
+<body>
+
+<div style="text-align: center; margin: 2rem 0 3rem 0;">
+
+<!-- Logo -->
+<img src="assets/A2UI_light.svg" alt="A2UI Logo" width="120" style="margin-bottom: 1rem;">
+
+<h1>代理驱动界面 (Agent-Driven Interfaces) 协议</h1>
+
+<p style="font-size: 1.2rem; max-width: 800px; margin: 0 auto 1rem auto; opacity: 0.9; line-height: 1.6;">
+A2UI 使 AI 代理能够生成丰富、交互式的用户界面，并在 Web、移动端和桌面上原生渲染——所有的这一切都无需执行任意代码。
+</p>
+
+</div>
+
+<div class="warning">
+    <strong>⚠️ 状态: 早期公开预览版</strong><br>
+    A2UI 目前处于 <strong>v0.8 (Public Preview)</strong> 阶段。规范和实现已具备功能，但仍在不断演进。我们要开源该项目是为了促进协作、收集反馈并征集贡献（例如在客户端渲染器方面）。请预期会有变更。
+</div>
+
+<h2>概览 (At a Glance)</h2>
+
+<p>A2UI 目前版本为 <a href="specification/v0.8-a2ui.html">v0.8</a>，使用 Apache 2.0 许可证，由 Google 创建，CopilotKit 和开源社区共同贡献，并在 <a href="https://github.com/google/A2UI">GitHub</a> 上积极开发中。</p>
+
+<p>A2UI 解决的问题是：<strong>AI 代理如何安全地跨越信任边界发送丰富的 UI？</strong></p>
+
+<p>A2UI 不使用纯文本响应或有风险的代码执行，而是让代理发送 <strong>声明式的组件描述</strong>，客户端使用其自己的原生小部件进行渲染。这就像拥有了一种代理通用的 UI 语言。</p>
+
+<p>在这个仓库中，你可以找到：
+<a href="specification/v0.8-a2ui.html">A2UI 规范</a>，以及为了客户端准备的 <a href="renderers.html">渲染器</a>（如 Angular, Flutter 等）实现，和在代理与与客户端之间传递消息的 <a href="transports.html">传输层</a>（如 A2A 等）实现。</p>
+
+<div class="card">
+    <h3>🛡️ 安全设计 (Secure by Design)</h3>
+    <hr>
+    <p>声明式数据格式，而非可执行代码。代理只能使用您目录中预先批准的组件——没有 UI 注入攻击。</p>
+</div>
+
+<div class="card">
+    <h3>🚀 对 LLM 友好 (LLM-Friendly)</h3>
+    <hr>
+    <p>扁平、流式的 JSON 结构，专为易于生成而设计。LLM 可以增量构建 UI，而无需一次性生成完美的 JSON。</p>
+</div>
+
+<div class="card">
+    <h3>📱 框架无关 (Framework-Agnostic)</h3>
+    <hr>
+    <p>一个代理响应适用于任何地方。在 Angular、Flutter、React 或原生移动端上渲染相同的 UI，并使用您自己的样式化组件。</p>
+</div>
+
+<div class="card">
+    <h3>📈 渐进式渲染 (Progressive Rendering)</h3>
+    <hr>
+    <p>随着生成的进行流式传输 UI 更新。用户可以看到界面实时构建，而不是等待完整的响应。</p>
+</div>
+
+<h2>5 分钟快速入门</h2>
+
+<div class="card">
+    <h3>⏱️ <a href="quickstart.html">快速入门指南</a></h3>
+    <hr>
+    <p>运行餐厅查找器演示，查看 A2UI 与 Gemini 驱动的代理的实际效果。</p>
+    <p><a href="quickstart.html">开始使用 →</a></p>
+</div>
+
+<div class="card">
+    <h3>📖 <a href="concepts/overview.html">核心概念</a></h3>
+    <hr>
+    <p>了解 Surface、组件、数据绑定和邻接表模型。</p>
+    <p><a href="concepts/overview.html">学习概念 →</a></p>
+</div>
+
+<div class="card">
+    <h3>💻 <a href="guides/client-setup.html">开发者指南</a></h3>
+    <hr>
+    <p>将 A2UI 渲染器集成到您的应用中，或构建生成 UI 的代理。</p>
+    <p><a href="guides/client-setup.html">开始构建 →</a></p>
+</div>
+
+<div class="card">
+    <h3>📄 <a href="specification/v0.8-a2ui.html">协议参考</a></h3>
+    <hr>
+    <p>深入了解完整的技术规范和消息类型。</p>
+    <p><a href="specification/v0.8-a2ui.html">阅读规范 →</a></p>
+</div>
+
+<h2>工作原理 (How It Works)</h2>
+
+<ol>
+<li><strong>用户发送消息</strong> 给 AI 代理</li>
+<li><strong>代理生成 A2UI 消息</strong> 描述 UI（结构 + 数据）</li>
+<li><strong>消息流式传输</strong> 到客户端应用程序</li>
+<li><strong>客户端渲染</strong> 使用原生组件（Angular, Flutter, React 等）</li>
+<li><strong>用户交互</strong> UI，将操作发送回代理</li>
+<li><strong>代理响应</strong> 更新后的 A2UI 消息</li>
+</ol>
+
+<p><img src="assets/end-to-end-data-flow.png" alt="End-to-End Data Flow"></p>
+
+<h2>A2UI 实战</h2>
+
+<h3>景观设计师演示</h3>
+
+<div>
+    <video width="100%" height="auto" controls playsinline style="display: block; aspect-ratio: 16/9; object-fit: cover;">
+      <source src="assets/landscape-architect-demo.mp4" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+  <p style="text-align: center; margin-top: 1rem; opacity: 0.8;">
+    观看代理为景观设计师应用程序生成所有界面。用户上传照片；代理使用 Gemini 理解照片并生成针对景观需求的定制表单。
+  </p>
+</div>
+
+<h3>自定义组件：交互式图表和地图</h3>
+
+<div>
+    <video width="100%" height="auto" controls playsinline style="display: block; aspect-ratio: 16/9; object-fit: cover;">
+      <source src="assets/a2ui-custom-compnent.mp4" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+  <p style="text-align: center; margin-top: 1rem; opacity: 0.8;">
+    观看代理选择响应图表组件以回答数字摘要问题。然后代理选择 Google 地图组件来回答位置问题。两者都是客户端提供的自定义组件。
+  </p>
+</div>
+
+<h3>A2UI Composer</h3>
+
+<p>CopilotKit 有一个公开的 <a href="https://go.copilotkit.ai/A2UI-widget-builder">A2UI Widget Builder</a> 可以试用。</p>
+
+<p><a href="https://go.copilotkit.ai/A2UI-widget-builder"><img src="assets/A2UI-widget-builder.png" alt="A2UI Composer"></a></p>
+
+</body>
+</html>

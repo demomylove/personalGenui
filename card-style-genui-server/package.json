@@ -18,8 +18,10 @@
     "body-parser": "^2.2.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
+    "eventsource-parser": "^3.0.6",
     "express": "^5.2.1",
     "fast-json-patch": "^3.1.1",
+    "jsonrepair": "^3.13.1",
     "node-fetch": "^2.7.0",
     "uuid": "^9.0.1"
   },

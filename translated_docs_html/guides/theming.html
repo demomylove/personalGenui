@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theming & Styling - A2UI 文档</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; color: #24292e; }
+        h1, h2, h3 { color: #24292e; margin-top: 24px; margin-bottom: 16px; }
+        h1 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        code { background-color: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 85%; }
+        pre { background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
+        pre code { background-color: transparent; padding: 0; font-size: 100%; }
+        a { color: #0366d6; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        ul { padding-left: 2em; }
+        li { margin-top: 0.25em; }
+    </style>
+</head>
+<body>
+
+<h1>Theming & Styling</h1>
+
+<p>自定义 A2UI 组件的外观和风格以匹配您的品牌。</p>
+
+<h2>A2UI 样式哲学</h2>
+
+<p>A2UI 遵循 <strong>客户端控制 styling</strong> 的方法：</p>
+
+<ul>
+<li><strong>代理描述 *what* to show</strong> (组件和结构)</li>
+<li><strong>客户端决定 *how* it looks</strong> (颜色、字体、间距)</li>
+</ul>
+
+<p>这确保了：</p>
+
+<ul>
+<li>✅ <strong>品牌一致性</strong>: 所有 UI 均符合您的应用设计系统</li>
+<li>✅ <strong>安全性</strong>: 代理不能注入任意 CSS 或样式</li>
+<li>✅ <strong>无障碍性</strong>: 您控制对比度、焦点状态和 ARIA 属性</li>
+<li>✅ <strong>平台原生感</strong>: Web 应用看起来像 Web，移动端看起来像移动端</li>
+</ul>
+
+<h2>样式层</h2>
+
+<p>A2UI 样式分层工作：</p>
+
+<pre class="mermaid">
+flowchart TD
+    A["1. Semantic Hints<br/>Agent provides hints<br/>(e.g., usageHint: 'h1')"]
+    B["2. Theme Configuration<br/>You configure<br/>(colors, fonts, spacing)"]
+    C["3. Component Overrides<br/>You customize<br/>(CSS/styles for specific components)"]
+    D["4. Rendered Output<br/>Native platform widgets"]
+
+    A --> B --> C --> D
+</pre>
+
+<h2>第 1 层：语义提示 (Semantic Hints)</h2>
+
+<p>代理提供语义提示（而非视觉样式）来指导客户端渲染：</p>
+
+<pre><code class="language-json">{
+  "id": "title",
+  "component": {
+    "Text": {
+      "text": {"literalString": "Welcome"},
+      "usageHint": "h1"
+    }
+  }
+}
+</code></pre>
+
+<p><strong>常见的 <code>usageHint</code> 值：</strong></p>
+<ul>
+<li>Text: <code>h1</code>, <code>h2</code>, <code>h3</code>, <code>h4</code>, <code>h5</code>, <code>body</code>, <code>caption</code></li>
+<li>其他组件有自己的 hints (见 <a href="../reference/components.html">组件参考</a>)</li>
+</ul>
+
+<p>客户端渲染器根据您的主题和设计系统将这些语义提示映射到实际的视觉样式。</p>
+
+<h2>第 2 层：主题配置 (Theme Configuration)</h2>
+
+<p>每个渲染器都提供了一种全局配置设计系统的方法，包括：</p>
+
+<ul>
+<li><strong>Colors (颜色)</strong>: Primary, secondary, background, surface, error, success 等</li>
+<li><strong>Typography (排版)</strong>: 字体系列、大小、粗细、行高</li>
+<li><strong>Spacing (间距)</strong>: 基本单位和比例 (xs, sm, md, lg, xl)</li>
+<li><strong>Shapes (形状)</strong>: 边框半径值</li>
+<li><strong>Elevation (层级)</strong>: 用于深度的阴影样式</li>
+</ul>
+
+<p>TODO: 添加特定平台的 theming 指南：</p>
+
+<p><strong>Web (Lit):</strong></p>
+<ul>
+<li>如何通过渲染器初始化配置主题</li>
+<li>可用的主题属性</li>
+</ul>
+
+<p><strong>Angular:</strong></p>
+<ul>
+<li>与 Angular Material theming 的集成</li>
+<li>独立的 A2UI 主题配置</li>
+</ul>
+
+<p><strong>Flutter:</strong></p>
+<ul>
+<li>A2UI 如何使用 Flutter 的 <code>ThemeData</code></li>
+<li>自定义主题属性</li>
+</ul>
+
+<p><strong>查看工作示例：</strong></p>
+<ul>
+<li><a href="https://github.com/google/a2ui/tree/main/samples/client/lit">Lit samples</a></li>
+<li><a href="https://github.com/google/a2ui/tree/main/samples/client/angular">Angular samples</a></li>
+<li><a href="https://docs.flutter.dev/ai/genui">Flutter GenUI docs</a></li>
+</ul>
+
+<h2>第 3 层：组件覆盖 (Component Overrides)</h2>
+
+<p>除了全局 theming，您还可以覆盖特定组件的样式：</p>
+
+<p><strong>Web renderers:</strong></p>
+<ul>
+<li>用于细粒度控制的 CSS 自定义属性（CSS 变量）</li>
+<li>用于特定组件覆盖的标准 CSS 选择器</li>
+</ul>
+
+<p><strong>Flutter:</strong></p>
+<ul>
+<li>通过 <code>ThemeData</code> 进行特定 Widget 的主题覆盖</li>
+</ul>
+
+<p>TODO: 为每个平台添加详细的组件覆盖示例。</p>
+
+<h2>常见样式功能</h2>
+
+<h3>暗黑模式 (Dark Mode)</h3>
+
+<p>A2UI 渲染器通常支持基于系统偏好设置的自动暗黑模式：</p>
+
+<ul>
+<li>自动检测系统主题 (<code>prefers-color-scheme</code>)</li>
+<li>手动亮色/暗色主题选择</li>
+<li>自定义暗色主题配置</li>
+</ul>
+
+<p>TODO: 添加暗黑模式配置示例。</p>
+
+<h3>响应式设计 (Responsive Design)</h3>
+
+<p>A2UI 组件默认是响应式的。您可以进一步自定义响应行为：</p>
+
+<ul>
+<li>针对不同屏幕尺寸的媒体查询</li>
+<li>针对组件级响应性的容器查询</li>
+<li>响应式间距和排版比例</li>
+</ul>
+
+<p>TODO: 添加响应式设计示例。</p>
+
+<h3>自定义字体 (Custom Fonts)</h3>
+
+<p>在您的 A2UI 应用程序中加载和使用自定义字体：</p>
+
+<ul>
+<li>Web 字体 (Google Fonts 等)</li>
+<li>自托管字体</li>
+<li>特定平台的字体加载</li>
+</ul>
+
+<p>TODO: 添加自定义字体示例。</p>
+
+<h2>最佳实践</h2>
+
+<h3>1. 使用语义提示，而非视觉属性</h3>
+
+<p>代理应提供语义提示 (<code>usageHint</code>)，绝不要提供视觉样式：</p>
+
+<pre><code class="language-json">// ✅ Good: Semantic hint
+{
+  "component": {
+    "Text": {
+      "text": {"literalString": "Welcome"},
+      "usageHint": "h1"
+    }
+  }
+}
+
+// ❌ Bad: Visual properties (not supported)
+{
+  "component": {
+    "Text": {
+      "text": {"literalString": "Welcome"},
+      "fontSize": 24,
+      "color": "#FF0000"
+    }
+  }
+}
+</code></pre>
+
+<h3>2. 保持无障碍性</h3>
+
+<ul>
+<li>确保足够的颜色对比度 (WCAG AA: 普通文本 4.5:1，大文本 3:1)</li>
+<li>使用屏幕阅读器进行测试</li>
+<li>支持键盘导航</li>
+<li>在亮色和暗色模式下均进行测试</li>
+</ul>
+
+<h3>3. 使用设计令牌 (Design Tokens)</h3>
+
+<p>定义可重用的设计令牌（颜色、间距等），并在您的样式中引用它们以保持一致性。</p>
+
+<h3>4. 跨平台测试</h3>
+
+<ul>
+<li>在所有目标平台（Web, 移动端, 桌面端）上测试您的 theming</li>
+<li>验证亮色和暗色模式</li>
+<li>检查不同的屏幕尺寸和方向</li>
+<li>确保跨平台的一致品牌体验</li>
+</ul>
+
+<h2>下一步</h2>
+
+<ul>
+<li><strong><a href="custom-components.html">自定义组件</a></strong>: 构建具有您样式的自定义组件</li>
+<li><strong><a href="../reference/components.html">组件参考</a></strong>: 查看所有组件的样式选项</li>
+<li><strong><a href="client-setup.html">客户端设置</a></strong>: 在您的应用程序中设置渲染器</li>
+</ul>
+
+</body>
+</html>

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quickstart: Run A2UI in 5 Minutes - A2UI 文档</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; color: #24292e; }
+        h1, h2, h3 { color: #24292e; margin-top: 24px; margin-bottom: 16px; }
+        h1 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        code { background-color: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 85%; }
+        pre { background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
+        pre code { background-color: transparent; padding: 0; font-size: 100%; }
+        a { color: #0366d6; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        ul { padding-left: 2em; }
+        li { margin-top: 0.25em; }
+        .warning { background-color: #fffbe6; border: 1px solid #ffe58f; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        .success { background-color: #f6ffed; border: 1px solid #b7eb8f; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        .tip { background-color: #e6f7ff; border: 1px solid #91d5ff; padding: 15px; border-radius: 4px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+<h1>快速入门：5 分钟运行 A2UI</h1>
+
+<p>通过运行餐厅查找器演示来亲身体验 A2UI。本指南将让您在不到 5 分钟的时间内体验代理生成的 UI。</p>
+
+<h2>您将构建什么</h2>
+
+<p>在本快速入门结束时，您将拥有：</p>
+
+<ul>
+<li>✅ 一个运行 A2UI Lit 渲染器的 Web 应用程序</li>
+<li>✅ 一个 Gemini 驱动的代理，可生成动态 UI</li>
+<li>✅ 一个交互式餐厅查找器，具有表单生成、时间选择和确认流程</li>
+<li>✅ 了解 A2UI 消息如何从代理流向 UI</li>
+</ul>
+
+<h2>先决条件</h2>
+
+<p>在开始之前，请确保您拥有：</p>
+
+<ul>
+<li><strong>Node.js</strong> (v18 或更高版本) - <a href="https://nodejs.org/">下载地址</a></li>
+<li><strong>Gemini API 密钥</strong> - <a href="https://aistudio.google.com/apikey">从 Google AI Studio 免费获取</a></li>
+</ul>
+
+<div class="warning">
+    <strong>安全提示</strong><br>
+    此演示运行从 A2A 代理，该代理使用 Gemini 生成 A2UI 响应。该代理有权访问您的 API 密钥，并将向 Google 的 Gemini API 发出请求。在生产环境中运行之前，请务必检查代理代码。
+</div>
+
+<h2>第 1 步：克隆仓库</h2>
+
+<pre><code class="language-bash">git clone https://github.com/google/a2ui.git
+cd a2ui
+</code></pre>
+
+<h2>第 2 步：设置 API 密钥</h2>
+
+<p>将您的 Gemini API 密钥导出为环境变量：</p>
+
+<pre><code class="language-bash">export GEMINI_API_KEY="your_gemini_api_key_here"
+</code></pre>
+
+<h2>第 3 步：导航到 Lit 客户端</h2>
+
+<pre><code class="language-bash">cd samples/client/lit
+</code></pre>
+
+<h2>第 4 步：安装并运行</h2>
+
+<p>运行一键演示启动命令：</p>
+
+<pre><code class="language-bash">npm install
+npm run demo:all
+</code></pre>
+
+<p>此命令将：</p>
+
+<ol>
+<li>安装所有依赖项</li>
+<li>构建 A2UI 渲染器</li>
+<li>启动 A2A 餐厅查找器代理（Python 后端）</li>
+<li>启动开发服务器</li>
+<li>在浏览器中打开 <code>http://localhost:5173</code></li>
+</ol>
+
+<div class="success">
+    <strong>演示运行中</strong><br>
+    如果一切正常，您应该会在浏览器中看到 Web 应用程序。该代理现在已准备好生成 UI！
+</div>
+
+<h2>第 5 步：试一试</h2>
+
+<p>在 Web 应用程序中，尝试以下提示：</p>
+
+<ol>
+<li><strong>"Book a table for 2"</strong> - 观看代理生成预订表单</li>
+<li><strong>"Find Italian restaurants near me"</strong> - 查看动态搜索结果</li>
+<li><strong>"What are your hours?"</strong> - 体验针对不同意图的不同 UI 布局</li>
+</ol>
+
+<h3>幕后发生了什么</h3>
+
+<pre><code>┌─────────────┐         ┌──────────────┐         ┌────────────────┐
+│   You Type  │────────>│ A2A Agent    │────────>│  Gemini API    │
+│  a Message  │         │  (Python)    │         │  (LLM)         │
+└─────────────┘         └──────────────┘         └────────────────┘
+                               │                         │
+                               │ Generates A2UI JSON     │
+                               │<────────────────────────┘
+                               │
+                               │ Streams JSONL messages
+                               v
+                        ┌──────────────┐
+                        │   Web App    │
+                        │ (A2UI Lit    │
+                        │  Renderer)   │
+                        └──────────────┘
+                               │
+                               │ Renders native components
+                               v
+                        ┌──────────────┐
+                        │   Your UI    │
+                        └──────────────┘
+</code></pre>
+
+<ol>
+<li><strong>您通过 Web UI 发送一条消息</strong></li>
+<li><strong>A2A 代理</strong> 接收该消息并将对话发送给 Gemini</li>
+<li><strong>Gemini 生成</strong> 描述 UI（结构 + 数据）的 A2UI JSON 消息</li>
+<li><strong>A2A 代理将这些消息流式传输</strong> 回 Web 应用程序</li>
+<li><strong>A2UI 渲染器</strong> 将它们转换为原生 Web 组件</li>
+<li><strong>您在浏览器中看到渲染出的 UI</strong></li>
+</ol>
+
+<h2>A2UI 消息剖析</h2>
+
+<p>让我们看看代理发送了什么。以下是 JSON 消息的简化示例：</p>
+
+<h3>定义 UI</h3>
+
+<pre><code class="language-json">{
+  "surfaceUpdate": {
+    "surfaceId": "main",
+    "components": [
+      {
+        "id": "header",
+        "component": {
+          "Text": {
+            "text": {"literalString": "Book Your Table"},
+            "usageHint": "h1"
+          }
+        }
+      },
+      {
+        "id": "date-picker",
+        "component": {
+          "DateTimeInput": {
+            "label": {"literalString": "Select Date"},
+            "value": {"path": "/reservation/date"},
+            "enableDate": true
+          }
+        }
+      },
+      {
+        "id": "submit-btn",
+        "component": {
+          "Button": {
+            "child": "submit-text",
+            "action": {"name": "confirm_booking"}
+          }
+        }
+      },
+      {
+        "id": "submit-text",
+        "component": {
+          "Text": {"text": {"literalString": "Confirm Reservation"}}
+        }
+      }
+    ]
+  }
+}
+</code></pre>
+
+<p>这定义了 Surface 的 UI 组件：一个文本标题、一个日期选择器和一个按钮。</p>
+
+<h3>填充数据</h3>
+
+<pre><code class="language-json">{
+  "dataModelUpdate": {
+    "surfaceId": "main",
+    "contents": [
+      {
+        "key": "reservation",
+        "valueMap": [
+          {"key": "date", "valueString": "2025-12-15"},
+          {"key": "time", "valueString": "19:00"},
+          {"key": "guests", "valueInt": 2}
+        ]
+      }
+    ]
+  }
+}
+</code></pre>
+
+<p>这填充了组件可以绑定的数据模型。</p>
+
+<h3>发出渲染信号</h3>
+
+<pre><code class="language-json">{"beginRendering": {"surfaceId": "main", "root": "header"}}
+</code></pre>
+
+<p>这告诉客户端它拥有足够的信息来渲染 UI。</p>
+
+<div class="tip">
+    <strong>这只是 JSON</strong><br>
+    注意这有多易读和结构化？LLM 可以轻松生成它，并且可以安全传输和渲染——不需要执行代码。
+</div>
+
+<h2>探索其他演示</h2>
+
+<p>该仓库包含其他几个演示：</p>
+
+<h3>组件库 (无需代理)</h3>
+
+<p>查看所有可用的 A2UI 组件：</p>
+
+<pre><code class="language-bash">npm start -- gallery
+</code></pre>
+
+<p>这将运行一个仅客户端的演示，展示每个标准组件（Card, Button, TextField, Timeline 等），并带有实时示例和代码示例。</p>
+
+<h3>联系人查找演示</h3>
+
+<p>尝试不同的代理用例：</p>
+
+<pre><code class="language-bash">npm run demo:contact
+</code></pre>
+
+<p>这演示了一个联系人查找代理，它可以生成搜索表单和结果列表。</p>
+
+<h2>下一步是什么？</h2>
+
+<p>现在您已经看到了 A2UI 的实际效果，您可以准备：</p>
+
+<ul>
+<li><strong><a href="concepts/overview.html">学习核心概念</a></strong>: 理解 Surface、组件和数据绑定</li>
+<li><strong><a href="guides/client-setup.html">设置您自己的客户端</a></strong>: 将 A2UI 集成到您自己的应用中</li>
+<li><strong><a href="guides/agent-development.html">构建代理</a></strong>: 创建生成 A2UI 响应的代理</li>
+<li><strong><a href="reference/messages.html">探索协议</a></strong>: 深入研究技术规范</li>
+</ul>
+
+<h2>故障排除</h2>
+
+<h3>端口已被占用</h3>
+
+<p>如果端口 5173 已被占用，开发服务器将自动尝试下一个可用端口。检查终端输出以获取实际 URL。</p>
+
+<h3>API 密钥问题</h3>
+
+<p>如果您看到关于缺少 API 密钥的错误：</p>
+
+<ol>
+<li>验证密钥已导出：<code>echo $GEMINI_API_KEY</code></li>
+<li>确保它是来自 <a href="https://aistudio.google.com/apikey">Google AI Studio</a> 的有效 Gemini API 密钥</li>
+<li>尝试重新导出：<code>export GEMINI_API_KEY="your_key"</code></li>
+</ol>
+
+<h3>Python 依赖问题</h3>
+
+<p>演示使用 Python 作为 A2A 代理。如果您遇到 Python 错误：</p>
+
+<pre><code class="language-bash"># 确保安装了 Python 3.10+
+python3 --version
+
+# 演示应通过 npm 脚本自动安装依赖项
+# 如果没有，请手动安装它们：
+cd ../../agent/adk/restaurant_finder
+pip install -r requirements.txt
+</code></pre>
+
+<h3>仍有问题？</h3>
+
+<ul>
+<li>查看 <a href="https://github.com/google/a2ui/issues">GitHub Issues</a></li>
+<li>查看 <a href="https://github.com/google/a2ui/tree/main/samples/client/lit">samples/client/lit/README.md</a></li>
+<li>加入社区讨论</li>
+</ul>
+
+<h2>理解演示代码</h2>
+
+<p>想看看即使是如何工作的？查看：</p>
+
+<ul>
+<li><strong>Agent 代码</strong>: <code>samples/agent/adk/restaurant_finder/</code> - Python A2A 代理</li>
+<li><strong>Client 代码</strong>: <code>samples/client/lit/</code> - 带有 A2UI 渲染器的 Lit Web 客户端</li>
+<li><strong>A2UI 渲染器</strong>: <code>web-lib/</code> - Web 渲染器实现</li>
+</ul>
+
+<p>每个目录都有自己的 README，包含详细的文档。</p>
+
+<hr>
+
+<p><strong>恭喜！</strong> 您已成功运行了第一个 A2UI 应用程序。您已经看到了 AI 代理如何生成能够在本机 Web 应用程序中渲染的丰富、交互式界面——所有这些都通过安全的、声明式的 JSON 消息实现。</p>
+
+</body>
+</html>

@@ -321,40 +321,28 @@ export const chatHandler = async (req: Request, res: Response) => {
         // Generate Prompt using the Intent + Context Data
         const intentPrompt = PromptBuilder.constructPrompt(inputMsg, contextData, currentDsl);
 
-        // Call LLM
-        const fullResponse = await LLMService.generateUI(intentPrompt, inputMsg, contextData, currentDsl);
+        // Call LLM with Streaming
+        let lastEmittedDsl = serverState.dsl ? JSON.parse(JSON.stringify(serverState.dsl)) : null; 
+        let isDslUpdateStarted = false;
 
-        clearInterval(keepAliveInterval);
-
-        console.log(`[Chat] [LLM Raw Response]:\n${fullResponse}\n-----------------------------------`);
-
-        // 5. Parse DSL & Compute Patch
-        let dslString = fullResponse;
-        const match = fullResponse.match(/```json([\s\S]*?)```/);
-        if (match) dslString = match[1];
-
-        let dslObject: any;
-        try {
-            dslObject = JSON.parse(dslString);
-            console.log(`[Chat] [DSL Parsed]: Success (Keys: ${Object.keys(dslObject).join(', ')})`);
-        } catch (e) {
-            console.error("LLM JSON Parse Error", e);
-            console.log(`[Chat] [DSL Parse Failed] String was: ${dslString}`);
-        }
-
-        if (dslObject) {
-            const hadOld = Object.prototype.hasOwnProperty.call(serverState, 'dsl') && serverState.dsl != null;
-            const patch = hadOld
-                ? compare({ dsl: serverState.dsl }, { dsl: dslObject })
-                : [{ op: 'add', path: '/dsl', value: dslObject } as Operation];
-
-            serverState.dsl = dslObject;
-            // Intent already saved above
-            stateStore.set(sessionId, serverState);
+        // streaming callback
+        const fullResponse = await LLMService.streamUI(intentPrompt, inputMsg, contextData, currentDsl, (newDsl, _) => {
+            isDslUpdateStarted = true;
+            
+            // Compute incremental patch
+            const patch = lastEmittedDsl
+                ? compare({ dsl: lastEmittedDsl }, { dsl: newDsl })
+                : [{ op: 'add', path: '/dsl', value: newDsl } as Operation];
 
             if (patch.length > 0) {
-                // Send State Delta Event
-                console.log(`[Chat] [Patch Generated]: ${JSON.stringify(patch)}`);
+                // Update local tracking state
+                lastEmittedDsl = JSON.parse(JSON.stringify(newDsl));
+                
+                // Persist to server state periodically (or at end, but nice to have in case of crash)
+                serverState.dsl = newDsl;
+                stateStore.set(sessionId, serverState);
+
+                console.log(`[Chat] [Stream Patch]: ${patch.length} ops`);
                 writeEvent({
                     type: EventType.STATE_DELTA,
                     threadId: sessionId,
@@ -362,13 +350,24 @@ export const chatHandler = async (req: Request, res: Response) => {
                     delta: patch,
                     timestamp: Date.now()
                 });
-            } else {
-                sendText("\n(Content is already up to date)");
             }
+        });
+
+        clearInterval(keepAliveInterval);
+        console.log(`[Chat] [LLM Raw Response Length]: ${fullResponse.length}`);
+
+        // Final consistency check or fallback for non-JSON response
+        if (!isDslUpdateStarted) {
+             // If no DSL was ever generated, treated as pure text response
+             sendText("\n" + fullResponse);
         } else {
-            // Just text response
-            sendText("\n" + fullResponse);
+             // Ensure final state is saved (redundant if done in callback, but safe)
+             serverState.dsl = lastEmittedDsl;
+             stateStore.set(sessionId, serverState);
         }
+
+        // Just for logging/debugging
+        const dslObject = lastEmittedDsl;
 
         // 6. TEXT_MESSAGE_END
         writeEvent({

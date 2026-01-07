@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Development Guide - A2UI 文档</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; color: #24292e; }
+        h1, h2, h3 { color: #24292e; margin-top: 24px; margin-bottom: 16px; }
+        h1 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        code { background-color: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 85%; }
+        pre { background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
+        pre code { background-color: transparent; padding: 0; font-size: 100%; }
+        a { color: #0366d6; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        ul { padding-left: 2em; }
+        li { margin-top: 0.25em; }
+        .warning { background-color: #fffbe6; border: 1px solid #ffe58f; padding: 15px; border-radius: 4px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+<h1>代理开发指南 (Agent Development Guide)</h1>
+
+<p>构建生成 A2UI 接口的 AI 代理。本指南涵盖从 LLM 生成和流式传输 UI 消息。</p>
+
+<h2>快速概览</h2>
+
+<p>构建一个 A2UI 代理：</p>
+
+<ol>
+<li><strong>理解用户意图</strong> → 决定显示什么 UI</li>
+<li><strong>生成 A2UI JSON</strong> → 使用 LLM 结构化输出或提示词</li>
+<li><strong>验证与流式传输</strong> → 检查 Schema，发送给客户端</li>
+<li><strong>处理操作</strong> → 响应用户交互</li>
+</ol>
+
+<h2>从简单的代理开始</h2>
+
+<p>我们将使用 ADK 来构建一个简单的代理。我们将从文本开始，最终将其升级到 A2UI。</p>
+
+<p>请参阅 <a href="https://google.github.io/adk-docs/get-started/python/">ADK 快速入门</a> 中的分步说明。</p>
+
+<pre><code class="language-bash">pip install google-adk
+adk create my_agent
+</code></pre>
+
+<p>然后编辑 <code>my_agent/agent.py</code> 文件，创建一个非常简单的餐厅推荐代理。</p>
+
+<pre><code class="language-python">import json
+from google.adk.agents.llm_agent import Agent
+from google.adk.tools.tool_context import ToolContext
+
+def get_restaurants(tool_context: ToolContext) -> str:
+    """Call this tool to get a list of restaurants."""
+    return json.dumps([
+        {
+            "name": "Xi'an Famous Foods",
+            "detail": "Spicy and savory hand-pulled noodles.",
+            "imageUrl": "http://localhost:10002/static/shrimpchowmein.jpeg",
+            "rating": "★★★★☆",
+            "infoLink": "[More Info](https://www.xianfoods.com/)",
+            "address": "81 St Marks Pl, New York, NY 10003"
+        },
+        # ... more restaurants ...
+    ])
+
+AGENT_INSTRUCTION="""
+You are a helpful restaurant finding assistant. Your goal is to help users find and book restaurants using a rich UI.
+
+To achieve this, you MUST follow this logic:
+
+1.  **For finding restaurants:**
+    a. You MUST call the `get_restaurants` tool. Extract the cuisine, location, and a specific number (`count`) of restaurants from the user's query (e.g., for "top 5 chinese places", count is 5).
+    b. After receiving the data, you MUST follow the instructions precisely to generate the final a2ui UI JSON, using the appropriate UI example from the `prompt_builder.py` based on the number of restaurants."""
+
+root_agent = Agent(
+    model='gemini-2.5-flash',
+    name="restaurant_agent",
+    description="An agent that finds restaurants and helps book tables.",
+    instruction=AGENT_INSTRUCTION,
+    tools=[get_restaurants],
+)
+</code></pre>
+
+<p>别忘了设置 <code>GOOGLE_API_KEY</code> 环境变量以运行此示例。</p>
+
+<pre><code class="language-bash">echo 'GOOGLE_API_KEY="YOUR_API_KEY"' > .env
+</code></pre>
+
+<p>您可以使用 ADK Web 界面测试此代理：</p>
+
+<pre><code class="language-bash">adk web
+</code></pre>
+
+<p>从列表中选择 <code>my_agent</code>，并询问有关纽约餐厅的问题。您应该会看到以纯文本形式显示的餐厅列表。</p>
+
+<h2>生成 A2UI 消息</h2>
+
+<p>让 LLM 生成 A2UI 消息需要一些提示工程 (prompt engineering)。</p>
+
+<div class="warning">
+    <strong>注意</strong><br>
+    这是一个我们仍在设计中的领域。这方面的开发人员工效学尚未最终确定。
+</div>
+
+<p>现在，让我们从联系人查找示例中复制 <code>a2ui_schema.py</code>。这是为您的代理获取 A2UI Schema 和示例的最简单方法（可能会更改）。</p>
+
+<pre><code class="language-bash">cp samples/agent/adk/contact_lookup/a2ui_schema.py my_agent/
+</code></pre>
+
+<p>首先，让我们添加新的导入到 <code>agent.py</code> 文件：</p>
+
+<pre><code class="language-python"># The schema for any A2UI message.  This never changes.
+from .a2ui_schema import A2UI_SCHEMA
+</code></pre>
+
+<p>现在，我们将修改代理指令以生成 A2UI 消息而不是纯文本。我们将为将来的 UI 示例留下占位符。</p>
+
+<pre><code class="language-python">
+# Eventually you can copy & paste some UI examples here, for few-shot in context learning
+RESTAURANT_UI_EXAMPLES = """
+"""
+
+# Construct the full prompt with UI instructions, examples, and schema
+A2UI_AND_AGENT_INSTRUCTION = AGENT_INSTRUCTION + f"""
+
+Your final output MUST be a a2ui UI JSON response.
+
+To generate the response, you MUST follow these rules:
+1.  Your response MUST be in two parts, separated by the delimiter: `---a2ui_JSON---`.
+2.  The first part is your conversational text response.
+3.  The second part is a single, raw JSON object which is a list of A2UI messages.
+4.  The JSON part MUST validate against the A2UI JSON SCHEMA provided below.
+
+--- UI TEMPLATE RULES ---
+-   If the query is for a list of restaurants, use the restaurant data you have already received from the `get_restaurants` tool to populate the `dataModelUpdate.contents` array (e.g., as a `valueMap` for the "items" key).
+-   If the number of restaurants is 5 or fewer, you MUST use the `SINGLE_COLUMN_LIST_EXAMPLE` template.
+-   If the number of restaurants is more than 5, you MUST use the `TWO_COLUMN_LIST_EXAMPLE` template.
+-   If the query is to book a restaurant (e.g., "USER_WANTS_TO_BOOK..."), you MUST use the `BOOKING_FORM_EXAMPLE` template.
+-   If the query is a booking submission (e.g., "User submitted a booking..."), you MUST use the `CONFIRMATION_EXAMPLE` template.
+
+{RESTAURANT_UI_EXAMPLES}
+
+---BEGIN A2UI JSON SCHEMA---
+{A2UI_SCHEMA}
+---END A2UI JSON SCHEMA---
+"""
+
+root_agent = Agent(
+    model='gemini-2.5-flash',
+    name="restaurant_agent",
+    description="An agent that finds restaurants and helps book tables.",
+    instruction=A2UI_AND_AGENT_INSTRUCTION,
+    tools=[get_restaurants],
+)
+</code></pre>
+
+<h2>理解输出</h2>
+
+<p>您的代理将不再严格输出文本。相反，它将输出文本和 A2UI 消息的 <strong>JSON 列表</strong>。</p>
+
+<p>我们导入的 <code>A2UI_SCHEMA</code> 是一个标准的 JSON schema，定义了诸如下列的有效操作：</p>
+
+<ul>
+<li><code>render</code> (显示 UI)</li>
+<li><code>update</code> (更改现有 UI 中的数据)</li>
+</ul>
+
+<p>因为输出是结构化的 JSON，您可以在将其发送到客户端之前对其进行解析和验证。</p>
+
+<pre><code class="language-python"># 1. Parse the JSON
+# Warning: Parsing the output as JSON is a fragile implementation useful for documentation.
+# LLMs often put Markdown fences around JSON output, and can make other mistakes.
+# Rely on frameworks to parse the JSON for you.
+parsed_json_data = json.loads(json_string_cleaned)
+
+# 2. Validate against A2UI_SCHEMA
+# This ensures the LLM generated valid A2UI commands
+jsonschema.validate(
+    instance=parsed_json_data, schema=self.a2ui_schema_object
+)
+</code></pre>
+
+<p>通过根据 <code>A2UI_SCHEMA</code> 验证输出，您可以确保您的客户端永远不会收到格式错误的 UI 指令。</p>
+
+<p>TODO: 继续本指南，提供有关如何在没有 A2A 扩展的情况下解析、验证并将输出发送到客户端渲染器的示例。</p>
+
+</body>
+</html>

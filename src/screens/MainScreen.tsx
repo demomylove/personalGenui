@@ -351,23 +351,46 @@ export default function MainScreen({
 
                         // 替换 #selectedCode 部分的代码
                         ListFooterComponent={
-                            loading ? (
+                            (loading || currentDsl) ? (
                                 <View style={styles.loadingContainer}>
+                                    
+                                    {/* [Phase 1: Visible Streaming] Render Partial/Live DSL here */}
+                                    {currentDsl && (
+                                        <View style={{marginBottom: 10, width: '100%'}}>
+                                            <View style={styles.aiMessageContainer}>
+                                                <RobotIcon size={32}/>
+                                                <LinearGradient
+                                                    colors={['#F0F4FC00', 'rgba(125,71,196,0)']}
+                                                    start={{x: 0.5, y: -0.3}}
+                                                    end={{x: 0.5, y: 2.0}}
+                                                    locations={[0, 1]}
+                                                    style={[styles.dslContainer, {
+                                                        opacity: 1,
+                                                        padding: 0,
+                                                        maxWidth: isLandscape() ? '70%' : '80%',
+                                                        maxHeight: "auto"
+                                                    }]}
+                                                >
+                                                    {renderComponent(currentDsl, agentState.dataContext || agentState || {}, handleInteraction)}
+                                                </LinearGradient>
+                                            </View>
+                                        </View>
+                                    )}
 
-                                    <View style={styles.statusContainer}>
-                                        <RobotIcon size={24}/>
-                                        <View style={styles.statusTextContainer}>
-                                            <TaskCard status={status}/>
-                                            <Text style={styles.statusText}>{statusText}</Text>
-                                            {/*使用 IntentionBlurView 组件*/}
-                                            <IntentionBlurView intention={intention}>
+                                    {/* Existing Status Indicator */}
+                                    {loading && (
+                                        <View style={styles.statusContainer}>
+                                            <RobotIcon size={24}/>
+                                            <View style={styles.statusTextContainer}>
                                                 <TaskCard status={status}/>
                                                 <Text style={styles.statusText}>{statusText}</Text>
-                                            </IntentionBlurView>
-
+                                                <IntentionBlurView intention={intention}>
+                                                    <TaskCard status={status}/>
+                                                    <Text style={styles.statusText}>{statusText}</Text>
+                                                </IntentionBlurView>
+                                            </View>
                                         </View>
-
-                                    </View>
+                                    )}
 
                                 </View>
                             ) : null

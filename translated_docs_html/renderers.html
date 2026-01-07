@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Renderers (Client Libraries) - A2UI 文档</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; color: #24292e; }
+        h1, h2, h3 { color: #24292e; margin-top: 24px; margin-bottom: 16px; }
+        h1 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        code { background-color: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 85%; }
+        pre { background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
+        pre code { background-color: transparent; padding: 0; font-size: 100%; }
+        a { color: #0366d6; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        ul { padding-left: 2em; }
+        li { margin-top: 0.25em; }
+        table { border-collapse: collapse; margin-bottom: 1em; width: 100%; }
+        th, td { border: 1px solid #dfe2e5; padding: 0.6em 1em; }
+        th { background-color: #f6f8fa; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<h1>渲染器 (Client Libraries)</h1>
+
+<p>渲染器将 A2UI JSON 消息转换为不同平台的原生 UI 组件。</p>
+
+<p><a href="agents.html">代理 (Agents)</a> 负责生成 A2UI 消息，
+<a href="transports.html">传输 (Transports)</a> 负责将消息投递到客户端。
+客户端渲染器库必须缓冲和处理 A2UI 消息，实现 A2UI 生命周期，并渲染 Surface（小部件）。</p>
+
+<p>您有很大的灵活性，可以向渲染器引入自定义组件，或者构建自己的渲染器来支持您的 UI 组件框架。</p>
+
+<h2>可用渲染器</h2>
+
+<table>
+<thead>
+<tr>
+<th>渲染器</th>
+<th>平台</th>
+<th>状态</th>
+<th>链接</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Lit (Web Components)</strong></td>
+<td>Web</td>
+<td>✅ Stable</td>
+<td><a href="https://github.com/google/A2UI/tree/main/renderers/lit">Code</a></td>
+</tr>
+<tr>
+<td><strong>Angular</strong></td>
+<td>Web</td>
+<td>✅ Stable</td>
+<td><a href="https://github.com/google/A2UI/tree/main/renderers/angular">Code</a></td>
+</tr>
+<tr>
+<td><strong>Flutter (GenUI SDK)</strong></td>
+<td>Mobile/Desktop/Web</td>
+<td>✅ Stable</td>
+<td><a href="https://docs.flutter.dev/ai/genui">Docs</a> · <a href="https://github.com/flutter/genui">Code</a></td>
+</tr>
+<tr>
+<td><strong>React</strong></td>
+<td>Web</td>
+<td>🚧 In Progress</td>
+<td>Coming Q1 2026</td>
+</tr>
+</tbody>
+</table>
+
+<p>查看 <a href="roadmap.html">路线图</a> 了解更多信息。</p>
+
+<h2>渲染器如何工作</h2>
+
+<pre><code>A2UI JSON → Renderer → Native Components → Your App
+</code></pre>
+
+<ol>
+<li><strong>接收</strong> 来自传输层的 A2UI 消息</li>
+<li><strong>解析</strong> JSON 并对照各 Schema 进行验证</li>
+<li>使用平台原生组件进行 <strong>渲染</strong></li>
+<li>根据您的应用程序主题进行 <strong>样式化</strong></li>
+</ol>
+
+<h2>使用渲染器</h2>
+
+<p>按照您选择的渲染器的设置指南，开始将 A2UI 集成到您的应用程序中：</p>
+
+<ul>
+<li><strong><a href="guides/client-setup.html#web-components-lit">Lit (Web Components)</a></strong></li>
+<li><strong><a href="guides/client-setup.html#angular">Angular</a></strong></li>
+<li><strong><a href="guides/client-setup.html#flutter-genui-sdk">Flutter (GenUI SDK)</a></strong></li>
+</ul>
+
+<h2>构建渲染器</h2>
+
+<p>想为您自己的平台构建渲染器？</p>
+
+<ul>
+<li>查看 <a href="roadmap.html">路线图</a> 了解计划中的框架。</li>
+<li>阅读现有渲染器以寻找模式。</li>
+<li>查阅我们的 <a href="guides/renderer-development.html">渲染器开发指南</a> 以获取实施渲染器的详细信息。</li>
+</ul>
+
+<h3>关键要求：</h3>
+
+<ul>
+<li>解析 A2UI JSON 消息，特别是邻接表格式</li>
+<li>将 A2UI 组件映射到原生小部件</li>
+<li>处理数据绑定、生命周期事件</li>
+<li>处理一系列增量 A2UI 消息来构建和更新 UI</li>
+<li>支持服务端发起的更新</li>
+<li>支持用户操作</li>
+</ul>
+
+<h3>下一步</h3>
+
+<ul>
+<li><strong><a href="guides/client-setup.html">客户端设置指南</a></strong>: 集成说明</li>
+<li><strong><a href="quickstart.html">快速入门</a></strong>: 试用 Lit 渲染器</li>
+<li><strong><a href="reference/components.html">组件参考</a></strong>: 需支持哪些组件</li>
+</ul>
+
+</body>
+</html>

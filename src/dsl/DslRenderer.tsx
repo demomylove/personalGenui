@@ -1,42 +1,33 @@
 import React from 'react';
-import {WidgetMapper} from './WidgetMapper';
-import AirConditioningCard from "../components/AirConditioningCard.tsx";
-import SeatControlCard from "../components/SeatControlCard.tsx";
-import WindowControlCard from "../components/WindowControlCard.tsx";
+import { WidgetMapper } from './WidgetMapper';
+import AirConditioningCard from "../components/AirConditioningCard";
+import SeatControlCard from "../components/SeatControlCard";
+import WindowControlCard from "../components/WindowControlCard";
 
-/**
- * 根据组件类型定义和数据上下文渲染组件。
- * @param component DSL 组件定义（JSON）
- * @param data 用于解析绑定的当前数据上下文
- * @returns React 节点
- */
-export const renderComponent = (component: any, data: any, onInteraction?: (action: any) => void): React.ReactNode => {
+export interface DslNodeProps {
+    component: any;
+    data: any;
+    onInteraction?: (action: any) => void;
+}
+
+const DslNodeComponent: React.FC<DslNodeProps> = ({ component, data, onInteraction }) => {
+    if (!component) return null;
+
     const type = component.component_type;
     const properties = component.properties || {};
     const children = component.children || [];
 
-    if (type !== 'Text' && type !== 'SizedBox' && type !== 'Spacer' && type !== 'Padding' && type !== 'Align') {
-        console.log('[DslRenderer] Rendering:', type, 'Props:', JSON.stringify(properties || {}));
-    }
-    if (type === 'car_control_ac') {
-        //空调本地卡片
-        return <AirConditioningCard></AirConditioningCard>
+    // Debug log for non-layout nodes (optional, can be removed for prod)
+    // if (type !== 'Text' && type !== 'SizedBox' && type !== 'Spacer' && type !== 'Padding' && type !== 'Align') {
+    //    console.log('[DslRenderer] Rendering:', type);
+    // }
 
-    }
-
-    if (type === 'car_control_seat') {
-        //座椅本地卡片
-        return <SeatControlCard></SeatControlCard>
-    }
-
-    if (type === 'car_control_window') {
-        //座椅本地卡片
-        return <WindowControlCard></WindowControlCard>
-    }
-
+    // Hardcoded custom cards
+    if (type === 'car_control_ac') return <AirConditioningCard />;
+    if (type === 'car_control_seat') return <SeatControlCard />;
+    if (type === 'car_control_window') return <WindowControlCard />;
 
     // Special handling for Loop
-    // Iterates over an array in 'data' and renders children for each item
     if (type === 'Loop') {
         const itemsKey = properties.items?.replace(/{{|}}/g, '').trim();
         const itemAlias = properties.item_alias;
@@ -47,25 +38,30 @@ export const renderComponent = (component: any, data: any, onInteraction?: (acti
         if (Array.isArray(items)) {
             const loopChildren: React.ReactNode[] = [];
             items.forEach((item, index) => {
-                // Render actual children of the Loop component for EACH item
-                // But we need to inject the alias into data context
-                const itemContext = {...data, [itemAlias]: item};
+                const itemContext = { ...data, [itemAlias]: item };
 
                 children.forEach((childTemplate: any, childIndex: number) => {
-                    const childNode = renderComponent(childTemplate, itemContext, onInteraction);
-                    if (childNode) {
-                        if (React.isValidElement(childNode)) {
-                            // Assign unique key to help React reconciliation
-                            loopChildren.push(React.cloneElement(childNode, {key: `${index}-${childIndex}`}));
-                        } else {
-                            loopChildren.push(childNode);
-                        }
-                    }
+                    const key = `${index}-${childIndex}`;
+                    loopChildren.push(
+                        <DslNode
+                            key={key}
+                            component={childTemplate}
+                            data={itemContext}
+                            onInteraction={onInteraction}
+                        />
+                    );
                 });
 
-                // Separator logic: add a SizedBox between items
+                // Separator logic
                 if (separator && index < items.length - 1) {
-                    loopChildren.push(WidgetMapper.buildWidget('SizedBox', {height: separator}, [], itemContext));
+                    loopChildren.push(
+                        WidgetMapper.buildWidget(
+                            'SizedBox',
+                            { height: separator },
+                            [],
+                            itemContext
+                        )
+                    );
                 }
             });
 
@@ -78,8 +74,7 @@ export const renderComponent = (component: any, data: any, onInteraction?: (acti
         return null;
     }
 
-
-    // Resolve properties: Replace {{binding}} with actual values
+    // Resolve properties
     const resolvedProps: any = {};
     Object.keys(properties).forEach((key) => {
         resolvedProps[key] = resolveValue(properties[key], data);
@@ -87,20 +82,38 @@ export const renderComponent = (component: any, data: any, onInteraction?: (acti
 
     // Recursively render children
     const childrenArray = Array.isArray(children) ? children : [];
-    const childWidgets = childrenArray.map((child: any, index: number) => {
-        // Add key to children
-        const childNode = renderComponent(child, data, onInteraction);
-        if (React.isValidElement(childNode)) {
-            return React.cloneElement(childNode, {key: index});
-        }
-        return childNode;
-    });
+    const childWidgets = childrenArray.map((child: any, index: number) => (
+        <DslNode
+            key={index}
+            component={child}
+            data={data}
+            onInteraction={onInteraction}
+        />
+    ));
 
     return WidgetMapper.buildWidget(type, resolvedProps, childWidgets, data, onInteraction);
 };
 
+// Optimization: Memoize the component to prevent re-renders of unchanged subtrees
+// This relies on structural sharing of the 'component' prop from the JSON Patch updates.
+export const DslNode = React.memo(DslNodeComponent, (prev, next) => {
+    // 1. If component object reference is same, no change in DSL for this node
+    // 2. If data reference is same, no change in binding context
+    // 3. onInteraction usually stable
+    return prev.component === next.component &&
+           prev.data === next.data;
+});
+
 /**
- * 解析可能包含类似 handlebars 语法 {{key}} 的字符串值
+ * Entry point for DslRenderer.
+ * Wraps the root DslNode in a generic container.
+ */
+export const renderComponent = (component: any, data: any, onInteraction?: (action: any) => void): React.ReactNode => {
+    return <DslNode component={component} data={data} onInteraction={onInteraction} />;
+};
+
+/**
+ * Helper: Resolve {{value}} bindings
  */
 const resolveValue = (value: any, data: any): any => {
     if (typeof value === 'string') {
@@ -138,7 +151,6 @@ const resolveValue = (value: any, data: any): any => {
         if (value.includes('${') && value.includes('}')) {
             const reg = /\$\{(.*?)\}/g;
             return value.replace(reg, (match, key) => {
-                // Strip optional "data." prefix if it doesn't match at root
                 const val = resolvePath(key.trim(), data);
                 return val !== undefined && val !== null ? String(val) : '';
             });

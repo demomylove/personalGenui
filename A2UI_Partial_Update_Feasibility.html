@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2UI 流式生长与局部更新全景方案</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #2980b9;
+            --server-color: #d35400;
+            --client-color: #27ae60;
+            --bg-color: #f9f9f9;
+            --text-color: #2c3e50;
+            --card-bg: #ffffff;
+            --code-bg: #f5f6fa;
+            --verify-color: #8e44ad;
+            --perf-color: #e74c3c;
+            --effect-color: #16a085;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 40px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 50px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        h1 {
+            color: var(--primary-color);
+            border-bottom: 3px solid #eee;
+            padding-bottom: 25px;
+            text-align: center;
+        }
+        h2 {
+            margin-top: 60px;
+            border-left: 5px solid;
+            padding-left: 15px;
+            font-size: 1.8em;
+        }
+        .h2-effect { color: var(--effect-color); border-left-color: var(--effect-color); }
+        .h2-verify { color: var(--verify-color); border-left-color: var(--verify-color); }
+        .h2-arch { color: var(--primary-color); border-left-color: var(--primary-color); }
+        .h2-server { color: var(--server-color); border-left-color: var(--server-color); }
+        .h2-client { color: var(--client-color); border-left-color: var(--client-color); }
+        .h2-perf { color: var(--perf-color); border-left-color: var(--perf-color); }
+        .h2-roadmap { color: var(--accent-color); border-left-color: var(--accent-color); }
+
+        h3 { color: #555; margin-top: 35px; font-weight: 600; }
+        p, li { font-size: 16px; }
+        ul { padding-left: 20px; }
+        li { margin-bottom: 8px; }
+        
+        code {
+            background-color: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            color: #c0392b;
+            font-size: 0.9em;
+        }
+        pre {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: Menlo, monospace;
+            font-size: 0.9em;
+        }
+        .box {
+            background-color: #eef7fa;
+            border-left: 5px solid var(--accent-color);
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 0 6px 6px 0;
+        }
+        .text-box {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .mermaid {
+            background: white;
+            padding: 20px;
+            border: 1px solid #e1e1e1;
+            border-radius: 8px;
+            margin: 30px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>A2UI 流式生长与局部更新全景方案</h1>
+    
+    <div class="box">
+        <strong>核心目标：</strong> 抛弃官方 Sample 的全量重绘模式，构建从服务端 Token 到客户端 Pixel 的全链路实时管线。
+        <br><strong>终极体验：</strong> 实现类似 ChatGPT 的打字机式视觉生长，并确保 60FPS 丝滑流畅。
+    </div>
+
+    <!-- 1. 预期效果解析 (Visual Outcome) -->
+    <h2 class="h2-effect">一、预期效果：生长与丝滑的区别</h2>
+    <p>为了明确“改造后能看到什么”，我们把视觉体验拆解为两个维度：</p>
+    
+    <div class="text-box">
+        <h3>1. 视觉引擎 (Phase 1 & 2) -> 负责“生长”</h3>
+        <ul>
+            <li><strong>作用</strong>：这是让卡片“慢慢长出来”的关键。</li>
+            <li><strong>无此模块</strong>：界面会 Loading 很久，然后所有内容“啪”地一下同时出现（Pop-in）。</li>
+            <li><strong>有此模块</strong>：UI 这里蹦出一个框，那里蹦出一行字。视觉上就是：空卡片 -> 第一行字 -> 图片 -> 按钮。这就是您要的“生长感”。</li>
+        </ul>
+    </div>
+
+    <div class="text-box">
+        <h3>2. 流畅度引擎 (Phase 3) -> 负责“丝滑”</h3>
+        <ul>
+            <li><strong>作用</strong>：这是让生长过程不卡顿、手机不发烫的关键。</li>
+            <li><strong>无此模块</strong>：当文字很长时，生长过程会像幻灯片一样卡顿 (Jank)，因为每长一个字，整个页面都在重绘。</li>
+            <li><strong>有此模块</strong>：只有正在打字的那个光标处在闪烁，周围界面静止不动。这就是 60FPS 的“丝滑感”。</li>
+        </ul>
+    </div>
+
+    <!-- 2. 协议合规性验证 (Protocol Compliance) -->
+    <h2 class="h2-verify">二、协议合规性验证 (Protocol Check)</h2>
+    <p>我们的方案不仅符合协议，而且比官方 Sample 更“正统”。</p>
+    <ul>
+        <li><strong>协议原文</strong>："Communication occurs via a JSON Lines (JSONL) stream... enabling progressive rendering."</li>
+        <li><strong>结论</strong>：A2UI 协议天生就是为流式设计的。官方 Sample 为了工程便利牺牲了这一点，而我们正在通过自研管线将其找回来。</li>
+    </ul>
+
+    <!-- 3. 全链路架构 (Architecture) -->
+    <h2 class="h2-arch">三、全链路技术架构 (Architecture)</h2>
+    <div class="mermaid">
+    sequenceDiagram
+        participant User
+        participant Client as 🟢 RN Client
+        participant Server as 🟠 Server
+        participant LLM as 🤖 LLM
+
+        User->>Client: "查询销量"
+        Client->>Server: HTTP POST (stream=true)
+        Server->>LLM: Chat Stream
+        
+        loop Token Stream
+            LLM->>Server: Chunk: '{ "type":'
+            Note right of Server: Real-time Parsing & Diffing
+            Server-->>Client: SSE Event: op="add", path="/type"
+            Note left of Client: Partial Mutation
+            Client-->>User: (UI 骨架逐行显现)
+        end
+    </div>
+
+    <h3 style="color:var(--server-color)">1. 云侧：流式 Diff 引擎</h3>
+    <ul>
+        <li><strong>Best-Effort Parser</strong>: 实时修复 LLM 吐出的残缺 JSON (如 <code>{"list": [1, 2</code>)。</li>
+        <li><strong>Diff Engine</strong>: 逐帧对比，生成最小 Patch，而非全量数据。</li>
+    </ul>
+
+    <h3 style="color:var(--client-color)">2. 端侧：局部渲染器</h3>
+    <ul>
+        <li><strong>Patch Applier</strong>: 接收 Patch，原地修改 Store。</li>
+        <li><strong>Scope</strong>: 确保变更只影响 Global Store，不触发 React 根组件重绘。</li>
+    </ul>
+
+    <!-- 4. Phase 3 深度解析 (Deep Dive) -->
+    <h2 class="h2-perf">四、深度解析：Phase 3 极致性能优化</h2>
+    <p>如何做到“牵一发而<strong>不</strong>动全身”？</p>
+
+    <div class="mermaid">
+    graph TD
+        subgraph Old ["❌ 优化前 (Cascading Update)"]
+            A[Root] -->|传整个Obj| B[List]
+            B -->|传Item| C[Item]
+            C -->|传Text| D[Text]
+            style D fill:#ffcccc
+            Update["更新叶子"] --> A
+            A -->|重绘| B -->|重绘| C -->|重绘| D
+        end
+
+        subgraph New ["✅ 优化后 (Context Selector)"]
+            Store{Global Store}
+            RI[Item] 
+            RT[Text]
+            
+            Store -.->|"Hook: select(path)"| RT
+            style RT fill:#a8e6cf
+            
+            Update2["更新叶子"] --> Store
+            Store -->|跳过Root/List| RT
+        end
+    </div>
+
+    <h3>Magic Code: 从传值到传址</h3>
+    <pre><code class="language-tsx">// ❌ Old: 父组件传值，父组件一变，子组件必变
+<TextComponent value={data.text} />
+
+// ✅ New: 父组件传路径(Path)，路径永远不变
+// 子组件自己去仓库(Store)里偷数据
+<SmartTextComponent path="/children/0/props/text" /></code></pre>
+
+    <!-- 5. 路线图 (Roadmap) -->
+    <h2 class="h2-roadmap">五、实施路线图 (Roadmap)</h2>
+
+    <h3>Phase 1: 客户端“显式流式”改造 (Visible Streaming)</h3>
+    <p><strong>动作</strong>：修改 <code>MainScreen.tsx</code>，移除等待逻辑，允许渲染中间态 DSL。<br>
+    <strong>价值</strong>：打通血管。一旦服务端开始流式传输，视觉效果立即生效。</p>
+
+    <h3>Phase 2: 服务端 Diff 引擎改造</h3>
+    <p><strong>动作</strong>：引入 <code>json-repair</code> 和 <code>Streaming Parser</code>。<br>
+    <strong>价值</strong>：真正的数据源头活水。实现“生长”效果的核心。</p>
+    
+    <h3>Phase 3: 客户端极致性能优化</h3>
+    <p><strong>动作</strong>：重构 <code>DslRenderer</code>，引入 <code>React.memo</code> 和 <code>Selectors</code>。<br>
+    <strong>价值</strong>：将 30FPS 的卡顿生长升级为 60FPS 的丝滑生长。</p>
+
+    <script>
+        mermaid.initialize({ startOnLoad: true });
+    </script>
+</div>
+
+</body>
+</html>

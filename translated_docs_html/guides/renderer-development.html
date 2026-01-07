@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A2UI Renderer Implementation Guide - A2UI 文档</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; color: #24292e; }
+        h1, h2, h3 { color: #24292e; margin-top: 24px; margin-bottom: 16px; }
+        h1 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        code { background-color: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 85%; }
+        pre { background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
+        pre code { background-color: transparent; padding: 0; font-size: 100%; }
+        ul { padding-left: 2em; }
+        li { margin-top: 0.25em; }
+    </style>
+</head>
+<body>
+
+<h1>A2UI 渲染器实现指南 (Renderer Implementation Guide)</h1>
+
+<p>本文档概述了基于 0.8 版本规范的 A2UI 协议新渲染器实施所需的特性。它的目标受众是构建新渲染器的开发人员（例如，针对 React、Flutter、iOS 等）。</p>
+
+<h2>I. 核心协议实施清单</h2>
+
+<p>本节详细介绍了 A2UI 协议的基本机制。合规的渲染器必须实施这些系统，以成功解析服务器流、管理状态及处理用户交互。</p>
+
+<h3>消息处理与状态管理</h3>
+
+<ul>
+<li><strong>JSONL 流解析</strong>: 实现一个解析器，可以逐行读取流式响应，将每一行解码为独特的 JSON 对象。</li>
+<li><strong>消息分发器</strong>: 创建一个分发器来识别消息类型 (<code>beginRendering</code>, <code>surfaceUpdate</code>, <code>dataModelUpdate</code>, <code>deleteSurface</code>) 并将其路由到正确的处理器。</li>
+<li><strong>Surface 管理</strong>:
+<ul>
+<li>实现一个数据结构来管理多个 UI surfaces，每个 surface 由其 <code>surfaceId</code> 键控。</li>
+<li>处理 <code>surfaceUpdate</code>: 在指定 surface 的组件缓冲区中添加或更新组件。</li>
+<li>处理 <code>deleteSurface</code>: 移除指定的 surface 及其所有关联的数据和组件。</li>
+</ul></li>
+<li><strong>组件缓冲 (Adjacency List)</strong>:
+<ul>
+<li>对于每个 surface，维护一个组件缓冲区 (例如，<code>Map&lt;String, Component&gt;</code>) 以通过其 <code>id</code> 存储所有组件定义。</li>
+<li>能够通过解析容器组件 (<code>children.explicitList</code>, <code>child</code>, <code>contentChild</code> 等) 中的 <code>id</code> 引用，在渲染时重建 UI 树。</li>
+</ul></li>
+<li><strong>数据模型存储</strong>:
+<ul>
+<li>对于每个 surface，维护一个单独的数据模型存储 (例如，JSON 对象或 <code>Map&lt;String, any&gt;</code>)。</li>
+<li>处理 <code>dataModelUpdate</code>: 更新指定 <code>path</code> 处的数据模型。<code>contents</code> 将采用邻接表格式 (例如，<code>[{ "key": "name", "valueString": "Bob" }]</code>)。</li>
+</ul></li>
+</ul>
+
+<h3>渲染逻辑</h3>
+
+<ul>
+<li><strong>渐进式渲染控制</strong>:
+<ul>
+<li>缓冲所有传入的 <code>surfaceUpdate</code> 和 <code>dataModelUpdate</code> 消息，而不立即渲染。</li>
+<li>处理 <code>beginRendering</code>: 此消息作为执行 surface 初始渲染并设置根组件 ID 的显式信号。
+<ul>
+<li>从指定的 <code>root</code> 组件 ID 开始渲染。</li>
+<li>如果提供了 <code>catalogId</code>，请确保使用相应的组件目录（如果省略，则默认为标准目录）。</li>
+<li>应用此消息中提供的任何全局 <code>styles</code> (例如，<code>font</code>, <code>primaryColor</code>)。</li>
+</ul></li>
+</ul></li>
+<li><strong>数据绑定解析</strong>:
+<ul>
+<li>实现用于解析组件属性中发现的 <code>BoundValue</code> 对象的解析器。</li>
+<li>如果仅存在 <code>literal*</code> 值 (<code>literalString</code>, <code>literalNumber</code> 等)，则直接使用它。</li>
+<li>如果仅存在 <code>path</code>，则根据 surface 的数据模型对其进行解析。</li>
+<li>如果 <code>path</code> 和 <code>literal*</code> 同时存在，首先用字面量值更新 <code>path</code> 处的数据模型，然后将组件属性绑定到该 <code>path</code>。</li>
+</ul></li>
+<li><strong>动态列表渲染</strong>:
+<ul>
+<li>对于具有 <code>children.template</code> 的容器，迭代在 <code>template.dataBinding</code> 处找到的数据列表（它解析为数据模型中的列表）。</li>
+<li>对于数据列表中的每一项，渲染由 <code>template.componentId</code> 指定的组件，使该项的数据可用于模板内的相对数据绑定。</li>
+</ul></li>
+</ul>
+
+<h3>客户端到服务器通信</h3>
+
+<ul>
+<li><strong>事件处理</strong>:
+<ul>
+<li>当用户与定义了 <code>action</code> 的组件交互时，构造一个 <code>userAction</code> 负载。</li>
+<li>根据数据模型解析 <code>action.context</code> 中的所有数据绑定。</li>
+<li>将完整的 <code>userAction</code> 对象发送到服务器的事件处理端点。</li>
+</ul></li>
+<li><strong>客户端能力报告</strong>:
+<ul>
+<li>在发送给服务器的 <strong>每条</strong> A2A 消息中（作为元数据的一部分），包含一个 <code>a2uiClientCapabilities</code> 对象。</li>
+<li>此对象应通过 <code>supportedCatalogIds</code> 声明您的客户端支持的组件目录（例如，包括标准 0.8 目录的 URI）。</li>
+<li>可选地，如果服务器支持，提供 <code>inlineCatalogs</code> 以进行自定义、即时的组件定义。</li>
+</ul></li>
+<li><strong>错误报告</strong>: 实现一种机制向服务器发送 <code>error</code> 消息，以报告任何客户端错误（例如，数据绑定失败，未知的组件类型）。</li>
+</ul>
+
+<h2>II. 标准组件目录清单</h2>
+
+<p>为了确保跨平台的一致用户体验，A2UI 定义了一套标准组件。您的客户端应将这些抽象定义映射到其对应的原生 UI 小部件。</p>
+
+<h3>基本内容</h3>
+
+<ul>
+<li><strong>Text</strong>: 渲染文本内容。必须支持 <code>text</code> 上的数据绑定和用于样式的 <code>usageHint</code> (h1-h5, body, caption)。</li>
+<li><strong>Image</strong>: 渲染来自 URL 的图像。必须支持 <code>fit</code> (cover, contain 等) 和 <code>usageHint</code> (avatar, hero 等) 属性。</li>
+<li><strong>Icon</strong>: 渲染目录中指定的标准集中的预定义图标。</li>
+<li><strong>Video</strong>: 为给定的 URL 渲染视频播放器。</li>
+<li><strong>AudioPlayer</strong>: 为给定的 URL 渲染音频播放器，可选带有描述。</li>
+<li><strong>Divider</strong>: 渲染视觉分隔符，支持 <code>horizontal</code> 和 <code>vertical</code> 轴。</li>
+</ul>
+
+<h3>布局与容器</h3>
+
+<ul>
+<li><strong>Row</strong>: 水平排列子元素。必须支持 <code>distribution</code> (justify-content) 和 <code>alignment</code> (align-items)。子元素可以有一个 <code>weight</code> 属性来控制 flex-grow 行为。</li>
+<li><strong>Column</strong>: 垂直排列子元素。必须支持 <code>distribution</code> 和 <code>alignment</code>。子元素可以有一个 <code>weight</code> 属性来控制 flex-grow 行为。</li>
+<li><strong>List</strong>: 渲染可滚动的项目列表。必须支持 <code>direction</code> (<code>horizontal</code>/<code>vertical</code>) 和 <code>alignment</code>。</li>
+<li><strong>Card</strong>: 一个容器，以视觉方式将子内容分组，通常带有边框、圆角和/或阴影。具有单个 <code>child</code>。</li>
+<li><strong>Tabs</strong>: 显示一组选项卡的容器。包含 <code>tabItems</code>，其中每个项目都有 <code>title</code> 和 <code>child</code>。</li>
+<li><strong>Modal</strong>: 出现在主要内容之上的对话框。它由 <code>entryPointChild</code> (例如按钮) 触发，并在激活时显示 <code>contentChild</code>。</li>
+</ul>
+
+<h3>交互与输入组件</h3>
+
+<ul>
+<li><strong>Button</strong>: 触发 <code>userAction</code> 的可点击元素。必须能够包含 <code>child</code> 组件（通常是 Text 或 Icon），并可能根据 <code>primary</code> 布尔值在样式上有所不同。</li>
+<li><strong>CheckBox</strong>: 可以切换的复选框，反映布尔值。</li>
+<li><strong>TextField</strong>: 文本输入字段。必须支持 <code>label</code>, <code>text</code> (值), <code>textFieldType</code> (<code>shortText</code>, <code>longText</code>, <code>number</code>, <code>obscured</code>, <code>date</code>), 和 <code>validationRegexp</code>。</li>
+<li><strong>DateTimeInput</strong>: 用于选择日期和/或时间的专用输入。必须支持 <code>enableDate</code> 和 <code>enableTime</code>。</li>
+<li><strong>MultipleChoice</strong>: 用于从列表 (<code>options</code>) 中选择一个或多个选项的组件。必须支持 <code>maxAllowedSelections</code> 并将 <code>selections</code> 绑定到列表或单个值。</li>
+<li><strong>Slider</strong>: 用于从定义范围 (<code>minValue</code>, <code>maxValue</code>) 中选择数值 (<code>value</code>) 的滑块。</li>
+</ul>
+
+</body>
+</html>

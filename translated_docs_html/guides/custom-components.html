@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Component Catalogs - A2UI 文档</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; color: #24292e; }
+        h1, h2, h3 { color: #24292e; margin-top: 24px; margin-bottom: 16px; }
+        h1 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; }
+        code { background-color: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; font-size: 85%; }
+        pre { background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; line-height: 1.45; }
+        pre code { background-color: transparent; padding: 0; font-size: 100%; }
+        a { color: #0366d6; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        ul { padding-left: 2em; }
+        li { margin-top: 0.25em; }
+    </style>
+</head>
+<body>
+
+<h1>自定义组件目录 (Custom Component Catalogs)</h1>
+
+<p>通过定义 <strong>自定义目录 (custom catalogs)</strong> 来扩展 A2UI，这些目录将您自己的组件与标准 A2UI 组件包含在一起。</p>
+
+<h2>为什么需要自定义目录？</h2>
+
+<p>A2UI 标准目录提供了通用的 UI 元素（按钮、文本字段等），但您的应用程序可能需要专用组件：</p>
+
+<ul>
+<li><strong>特定领域的组件</strong>: 股票行情显示器、医疗图表、CAD 查看器</li>
+<li><strong>第三方集成</strong>: Google 地图、支付表单、聊天小部件</li>
+<li><strong>品牌特定组件</strong>: 自定义日期选择器、产品卡片、仪表板</li>
+</ul>
+
+<p><strong>自定义目录</strong> 是组件的集合，可以包括：</p>
+<ul>
+<li>标准 A2UI 组件 (Text, Button, TextField 等)</li>
+<li>您的自定义组件 (GoogleMap, StockTicker 等)</li>
+<li>第三方组件</li>
+</ul>
+
+<p>您向客户端应用程序注册整个目录，而不是单个组件。这允许代理和客户端就一组共享的、扩展的组件达成一致，同时保持安全性和类型安全。</p>
+
+<h2>自定义目录如何工作</h2>
+
+<ol>
+<li><strong>客户端定义目录</strong>: 您创建一个目录定义，列出标准组件和自定义组件。</li>
+<li><strong>客户端注册目录</strong>: 您向客户端应用注册该目录（及其组件实现）。</li>
+<li><strong>客户端宣布支持</strong>: 客户端通知代理它支持哪些目录。</li>
+<li><strong>代理选择目录</strong>: 代理为给定的 UI surface 选择一个目录。</li>
+<li><strong>代理生成 UI</strong>: 代理使用该目录中的组件名称生成 <code>surfaceUpdate</code> 消息。</li>
+</ol>
+
+<h2>定义自定义目录</h2>
+
+<p>TODO: 为每个平台添加定义自定义目录的详细指南。</p>
+
+<p><strong>Web (Lit / Angular):</strong></p>
+<ul>
+<li>如何定义包含标准和自定义组件的目录</li>
+<li>如何向 A2UI 客户端注册目录</li>
+<li>如何实现自定义组件类</li>
+</ul>
+
+<p><strong>Flutter:</strong></p>
+<ul>
+<li>如何使用 GenUI 定义自定义目录</li>
+<li>如何注册自定义组件渲染器</li>
+</ul>
+
+<p><strong>查看工作示例：</strong></p>
+<ul>
+<li><a href="https://github.com/google/a2ui/tree/main/samples/client/lit">Lit samples</a></li>
+<li><a href="https://github.com/google/a2ui/tree/main/samples/client/angular">Angular samples</a></li>
+<li><a href="https://docs.flutter.dev/ai/genui">Flutter GenUI docs</a></li>
+</ul>
+
+<h2>代理端：使用自定义目录中的组件</h2>
+
+<p>一旦在客户端注册了目录，代理就可以在 <code>surfaceUpdate</code> 消息中使用其中的组件。</p>
+
+<p>代理通过 <code>beginRendering</code> 消息中的 <code>catalogId</code> 指定要使用的目录。</p>
+
+<p>TODO: 添加以下示例：</p>
+<ul>
+<li>代理如何选择目录</li>
+<li>代理如何引用目录中的自定义组件</li>
+<li>目录版本控制如何工作</li>
+</ul>
+
+<h2>数据绑定和操作</h2>
+
+<p>自定义组件支持与标准组件相同的数据绑定和操作机制：</p>
+
+<ul>
+<li><strong>数据绑定</strong>: 自定义组件可以使用 JSON Pointer 语法将属性绑定到数据模型路径</li>
+<li><strong>操作</strong>: 自定义组件可以发出代理接收并处理的操作</li>
+</ul>
+
+<h2>安全考虑</h2>
+
+<p>创建自定义目录和组件时：</p>
+
+<ol>
+<li><strong>白名单组件</strong>: 仅在您的目录中注册您信任的组件</li>
+<li><strong>验证属性</strong>: 始终验证来自代理消息的组件属性</li>
+<li><strong>清理用户输入</strong>: 如果组件接受用户输入，请在处理之前对其进行清理</li>
+<li><strong>限制 API 访问</strong>: 不要向自定义组件公开敏感 API 或凭据</li>
+</ol>
+
+<p>TODO: 添加详细的安全最佳实践和代码示例。</p>
+
+<h2>下一步</h2>
+
+<ul>
+<li><strong><a href="theming.html">Theming & Styling</a></strong>: 自定义组件的外观和感觉</li>
+<li><strong><a href="../reference/components.html">组件参考</a></strong>: 查看所有标准组件</li>
+<li><strong><a href="agent-development.html">代理开发</a></strong>: 构建使用自定义组件的代理</li>
+</ul>
+
+</body>
+</html>

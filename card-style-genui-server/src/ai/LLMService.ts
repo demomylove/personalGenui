@@ -11,6 +11,9 @@
 import { IntentRecognitionService, IntentResult, IntentType, ConversationTurn } from './IntentRecognitionService';
 import { IntentTemplateService } from './IntentTemplateService';
 import { PromptBuilder } from './PromptBuilder';
+// @ts-ignore
+import { jsonrepair } from 'jsonrepair';
+import { createParser } from 'eventsource-parser';
 
 export class LLMService {
   // Toggle mock via env; default to REAL API (false) per deployment requirement
@@ -778,6 +781,162 @@ export class LLMService {
       console.error('LLM Request Failed:', error);
       // Fallback to mock for resilience (optional)
       return this.mockGenerate(prompt, userQuery, dataContext, currentDsl);
+    }
+  }
+
+  /**
+   * Generates UI DSL in a streaming fashion.
+   * Calls onProgress(dslObject) whenever a valid (repaired) JSON object is constructed.
+   */
+  static async streamUI(
+    prompt: string,
+    userQuery: string | undefined,
+    dataContext: any,
+    currentDsl: any,
+    onProgress: (dsl: any, fullText: string) => void
+  ): Promise<string> {
+    if (this.USE_MOCK) {
+        // Mock streaming: just return the full mock result after delay
+        const mockRes = await this.mockGenerate(prompt, userQuery, dataContext, currentDsl);
+        try {
+            const mockObj = JSON.parse(mockRes);
+            onProgress(mockObj, mockRes);
+        } catch(e) {}
+        return mockRes;
+    }
+
+    console.log(`[LLMService] Calling Qwen API (Streaming)...`);
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 120000); // 120s timeout for stream
+
+      const response = await fetch(this.API_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.API_KEY}`
+          // 'X-DashScope-SSE': 'enable' // Removing potentially conflicting header for compatible mode
+        },
+        body: JSON.stringify({
+          model: "qwen-flash", 
+          messages: [
+            { role: "system", content: "You are a helpful assistant. Please respond with valid JSON." },
+            { role: "user", content: prompt }
+          ],
+          response_format: { type: "json_object" },
+          enable_search: true,
+          stream: true
+          // incremental_output: true // Removing specific param for compatible mode
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
+      console.log(`[LLMService] Response Status: ${response.status} ${response.statusText}`);
+      console.log(`[LLMService] Content-Type: ${response.headers.get('content-type')}`);
+
+      if (!response.ok) {
+         throw new Error(`LLM API Error: ${response.statusText}`);
+      }
+
+      // Manual SSE parsing (eventsource-parser has issues with fragmented chunks)
+      let fullContent = "";
+      let sseBuffer = ""; // Buffer to handle SSE messages split across chunks
+
+      // @ts-ignore
+      if (response.body?.getReader) {
+          // Web Stream (Standard)
+          // @ts-ignore
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          console.log('[LLMService] Stream: Reader acquired.');
+          let chunkCount = 0;
+
+          while (true) {
+              const { done, value } = await reader.read();
+              if (done) {
+                  console.log(`[LLMService] Stream: Reader done. Total chunks: ${chunkCount}, fullContent length: ${fullContent.length}`);
+                  break;
+              }
+              chunkCount++;
+              
+              // [DEBUG] Artificial delay
+              await new Promise(r => setTimeout(r, 200));
+              
+              const text = decoder.decode(value, { stream: true });
+              // console.log(`[LLMService] Stream Chunk #${chunkCount}: ${text.length} chars`);
+              
+              // Manual SSE parsing
+              sseBuffer += text;
+              const lines = sseBuffer.split('\n');
+              sseBuffer = lines.pop() || ""; // Keep incomplete line in buffer
+              
+              for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                      const dataStr = line.slice(6); // Remove "data: " prefix
+                      if (dataStr === '[DONE]') continue;
+                      try {
+                          const chunk = JSON.parse(dataStr);
+                          const delta = chunk.choices?.[0]?.delta?.content || "";
+                          if (delta) {
+                              fullContent += delta;
+                              try {
+                                  // Strip markdown code blocks for cleaner parsing
+                                  const cleanContent = fullContent.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```$/, '');
+                                  const repaired = jsonrepair(cleanContent);
+                                  const dslObj = JSON.parse(repaired);
+                                  onProgress(dslObj, fullContent);
+                              } catch (e) {
+                                  // JSON not yet complete, continue accumulating
+                              }
+                          }
+                      } catch (e) {
+                          // Ignore parse errors for incomplete JSON
+                      }
+                  }
+              }
+          }
+      } else {
+          // Node Stream / Fallback
+          console.log('[LLMService] Stream: Fallback to async iterator.');
+          const decoder = new TextDecoder();
+          // @ts-ignore
+          for await (const chunk of response.body) {
+              await new Promise(r => setTimeout(r, 200));
+              const text = decoder.decode(chunk, { stream: true });
+              
+              // Manual SSE parsing (same as above)
+              sseBuffer += text;
+              const lines = sseBuffer.split('\n');
+              sseBuffer = lines.pop() || "";
+              
+              for (const line of lines) {
+                  if (line.startsWith('data: ')) {
+                      const dataStr = line.slice(6);
+                      if (dataStr === '[DONE]') continue;
+                      try {
+                          const chunkData = JSON.parse(dataStr);
+                          const delta = chunkData.choices?.[0]?.delta?.content || "";
+                          if (delta) {
+                              fullContent += delta;
+                              try {
+                                  const cleanContent = fullContent.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```$/, '');
+                                  const repaired = jsonrepair(cleanContent);
+                                  const dslObj = JSON.parse(repaired);
+                                  onProgress(dslObj, fullContent);
+                              } catch (e) { }
+                          }
+                      } catch (e) { }
+                  }
+              }
+          }
+      }
+
+      return fullContent;
+
+    } catch (error) {
+       console.error('[LLMService] Stream Request Failed:', error);
+       throw error;
     }
   }
 }

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GenUI & A2UI 完整技术分析报告 (Full Report)</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; padding: 40px; max-width: 960px; margin: 0 auto; color: #333; background-color: #fff; }
+        h1 { border-bottom: 2px solid #eaeaea; padding-bottom: 10px; color: #1a1a1a; margin-top: 50px; }
+        h1:first-child { margin-top: 10px; }
+        h2 { border-left: 5px solid #007AFF; padding-left: 10px; margin-top: 40px; color: #2c3e50; background: #f8f9fa; padding-top: 5px; padding-bottom: 5px; }
+        h3 { color: #555; margin-top: 30px; font-weight: 600; border-bottom: 1px dotted #ccc; padding-bottom: 5px; }
+        code { background-color: #f6f8fa; padding: 2px 4px; border-radius: 4px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace; font-size: 0.9em; color: #d63384; }
+        pre { background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow-x: auto; border: 1px solid #e1e4e8; }
+        .mermaid { margin: 30px 0; text-align: center; }
+        .note { background-color: #e6f7ff; border: 1px solid #91d5ff; padding: 15px; border-radius: 4px; margin: 20px 0; font-size: 0.95em; }
+        .success { background-color: #f6ffed; border: 1px solid #b7eb8f; padding: 15px; border-radius: 4px; margin: 20px 0; font-size: 0.95em; }
+        .deep-dive { background-color: #f0f5ff; border: 1px solid #adc6ff; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        .comparison-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .comparison-table th, .comparison-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        .comparison-table th { background-color: #f2f2f2; font-weight: bold; color: #333; }
+        .comparison-table tr:nth-child(even) { background-color: #f9f9f9; }
+        .pros { color: green; font-weight: 500; }
+        .cons { color: #d93025; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+    <div style="text-align: center; margin-bottom: 40px;">
+        <h1 style="border: none; margin-bottom: 10px;">GenUI & A2UI 完整技术分析报告</h1>
+        <p style="color: #666;">ViewTree 渲染机制 | A2UI 协议解析 | 源码实现 | React Native 迁移指南</p>
+    </div>
+
+    <!-- Part I: 原始内容 -->
+    <h1>Part I: 当前工程机制解析 (GenUI Kit)</h1>
+    
+    <div class="note">
+        <strong>核心特征：</strong> 采用 <strong>Buffered + Patch</strong> 模式，适合生成稳定、完整的 UI 卡片。
+    </div>
+
+    <h2>1. 渲染管线 (Pipeline)</h2>
+    <div class="mermaid">
+    flowchart TD
+        subgraph Server["服务端"]
+            LLM -->|Buffered| FullObj["DSL Tree"]
+            FullObj -->|"diff()"| Patch["JSON Patch"]
+            Patch -->|"SSE"| Network
+        end
+        subgraph Client["客户端 (RN)"]
+            Network -->|apply_patch| Store
+            Store -->|setState| MainScreen
+            MainScreen -->|Recursion| DslRenderer
+            DslRenderer -->|Mapping| NativeView
+        end
+        style Server fill:#f9f9f9,stroke:#333
+        style Client fill:#e6f7ff,stroke:#007AFF
+    </div>
+
+    <h2>2. 递归渲染原理</h2>
+    <p>当前使用 <code>DslRenderer</code> 进行深度优先递归遍历 (DFS)。</p>
+    <ul>
+        <li><strong>优点</strong>: 逻辑简单，状态一致性好，开发调试容易。</li>
+        <li><strong>缺点</strong>: 每次更新（即使只改一个字）都需要重走一遍组件树的 Diff 流程，且无法支持“流式逐个组件显示”。</li>
+    </ul>
+
+    <hr style="margin: 60px 0; border: 0; border-top: 4px solid #eaeaea;">
+
+    <!-- Part II: A2UI 协议 -->
+    <h1>Part II: A2UI 协议深度剖析</h1>
+    
+    <div class="note">
+        <strong>通过分析 Google A2UI 源码，我们发现了其实现“打字机式”生长效果的秘密。</strong>
+    </div>
+
+    <h2>3. 关键差异：Flat List & Signals</h2>
+    <table class="comparison-table">
+        <thead>
+            <tr>
+                <th>特性</th>
+                <th>当前 GenUI Kit</th>
+                <th>A2UI 标准</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>数据结构</strong></td>
+                <td>嵌套树 (Nested Tree)<br><code>{ children: [{...}] }</code></td>
+                <td>扁平表 (Normalized Map)<br><code>Map&lt;ID, Component&gt;</code></td>
+            </tr>
+            <tr>
+                <td><strong>更新粒度</strong></td>
+                <td>全量/各种 Patch</td>
+                <td><strong>Signals (细粒度响应)</strong></td>
+            </tr>
+            <tr>
+                <td><strong>流式体验</strong></td>
+                <td>整卡加载 (Buffered)</td>
+                <td>动态生长 (Progressive)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <hr style="margin: 60px 0; border: 0; border-top: 4px solid #eaeaea;">
+
+    <!-- Part III: 源码分析与迁移 -->
+    <h1>Part III: 源码级还原与 RN 实战 (Deep Dive)</h1>
+
+    <div class="deep-dive">
+        <strong>源码审计结论：</strong> A2UI 的流式效果不依赖于某种神奇的 JSON 解析器，而是依赖于 <strong>Signal（信号）</strong> 驱动的归一化数据结构。
+    </div>
+
+    <h2>4. 官方实现揭秘 (Lit vs Angular)</h2>
+
+    <h3>A. LitRenderer (参考实现)</h3>
+    <p>在 <code>renderers/lit/src/0.8/data/signal-model-processor.ts</code> 中：</p>
+    <ul>
+        <li>使用了 <code>signal-utils</code> 库。</li>
+        <li>数据存储不是普通对象，而是 <code>new SignalMap()</code>。</li>
+        <li><strong>机制</strong>: 当服务端推送一个新组件片段时，Processor 只是 <code>map.set(id, content)</code>。因为是 SignalMap，只有订阅了该 ID 的组件会被唤醒更新。</li>
+    </ul>
+
+    <h3>B. AngularRenderer</h3>
+    <p>在 <code>renderers/angular/src/lib/rendering/renderer.ts</code> 中：</p>
+    <ul>
+        <li>使用了 Angular 17+ 的原生 <code>signal()</code> 和 <code>effect()</code>。</li>
+        <li>组件通过 <code>input.required()</code> 接收信号数据，任何数据变更直接触发 Effect 里的 <code>render()</code>。</li>
+    </ul>
+
+    <h2>5. React Native 终极迁移指南</h2>
+
+    <p>要在 React Native 中复刻这种“动态生长”，我们需要引入 <strong>Signals</strong>。</p>
+
+    <h3>步骤一：安装 Signals 库</h3>
+    <code class="language-bash">npm install @preact/signals-react</code>
+    
+    <h3>步骤二：构建归一化 Store (Normalized Store)</h3>
+    <pre><code class="language-typescript">import { signal, computed } from "@preact/signals-react";
+
+// 1. 全局 Store：就是一个巨大的 Map，存着所有组件的 Signal
+// key 是组件 ID，value 是包含 reactive 属性的组件对象
+export const componentStore = signal(new Map&lt;string, any&gt;());
+
+// 2. 写入数据函数
+export function updateComponent(id, newData) {
+    const map = componentStore.value;
+    if (!map.has(id)) {
+        // 新组件：创建一个新的 Signal 对象存进去
+        map.set(id, { 
+            ...newData, 
+            childIds: signal(newData.children || []) 
+            // ^^^ 关键！子节点列表是独立的 Signal
+        });
+        componentStore.value = new Map(map); // 触发 Store 更新
+    } else {
+        // 旧组件：只更新它的 Signal 属性
+        const existing = map.get(id);
+        if (newData.children) {
+            existing.childIds.value = newData.children; 
+            // ^^^ 这一步，只有订阅了 childIds 的父组件会刷新！
+        }
+    }
+}</code></pre>
+
+    <h3>步骤三：创建原子化组件 (Atomic Component)</h3>
+    <pre><code class="language-tsx">import { useSignals } from "@preact/signals-react/runtime";
+
+export const GenUIComponent = ({ id }) => {
+    useSignals(); // 开启黑魔法
+
+    // 1. 根据 ID 从大 Map 里拿数据
+    const store = componentStore.value;
+    const node = store.get(id);
+
+    if (!node) return null;
+
+    // 2. 渲染 Children
+    if (node.type === 'Column') {
+        return (
+            &lt;View&gt;
+                {/* 
+                   重点：这里访问了 childIds.value
+                   当服务端往 childIds 里 push 一个新 id 时，
+                   只有当前这个 View 会重绘，添加一个新的 GenUIComponent。
+                   原来已经存在的 GenUIComponent 不会重绘！
+                */}
+                {node.childIds.value.map(childId => (
+                    &lt;GenUIComponent key={childId} id={childId} /&gt;
+                ))}
+            &lt;/View&gt;
+        );
+    }
+
+    // 3. 渲染叶子节点
+    if (node.type === 'Text') {
+        return &lt;Text&gt;{node.props.text}&lt;/Text&gt;;
+    }
+};</code></pre>
+
+    <div class="success">
+        <strong>总结：</strong> 通过上述方案，您可以在 React Native 中实现 O(1) 复杂度的界面更新。无论服务端吐字多快，前端都能以最小的开销实时“生长”出新的 UI 节点，完美复刻 A2UI 的体验。
+    </div>
+
+    <script>
+        mermaid.initialize({ startOnLoad: true });
+    </script>
+</body>
+</html>

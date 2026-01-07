@@ -1,7 +1,6 @@
 
-// src/utils/AGUIClient.ts (reverted to EventSource-based SSE client)
+// src/utils/AGUIClient.ts
 import EventSource from 'react-native-sse';
-import { apply_patch } from 'jsonpatch';
 
 type Message = {
   role: 'user' | 'assistant' | 'system';
@@ -38,7 +37,7 @@ export class AGUIClient {
   private currentState: AgentState = {};
   private listeners: Partial<Listener> = {};
   private sessionId: string | null = null;
-  private messages: Message[] = []; // 维护对话历史
+  private messages: Message[] = []; 
 
   constructor(private endpoint: string) { }
 
@@ -50,16 +49,13 @@ export class AGUIClient {
     this.currentState = { ...this.currentState, ...initialState };
 
     const stateToSend = { ...this.currentState };
-    // delete stateToSend.dsl; // server needs DSL context for stateful modifications
 
-    // 添加用户消息到历史
     this.messages.push({ role: 'user', content: userMessage });
 
-    // Close any previous stream before starting a new one to avoid duplicate listeners
     this.es?.close();
 
     const requestBody = {
-        messages: [...this.messages], // 发送完整的对话历史
+        messages: [...this.messages], 
         state: stateToSend,
         sessionId: this.sessionId,
     };
@@ -76,7 +72,7 @@ export class AGUIClient {
     this.es.addEventListener('message', (event: any) => {
       console.log('[AGUIClient Stream] data:', event.data);
       if (event.data === '[DONE]') {
-        this.listeners.onDone?.(); // signal completion
+        this.listeners.onDone?.(); 
         this.es?.close();
         return;
       }
@@ -84,7 +80,6 @@ export class AGUIClient {
         const data: any = JSON.parse(event.data);
         this.handleEvent(data);
       } catch (e) {
-        // ignore parse errors
       }
     });
 
@@ -100,26 +95,18 @@ export class AGUIClient {
         this.sessionId = event.sessionId;
         break;
       case 'MESSAGE_START':
-        // 消息开始时，添加助手消息到历史
         this.messages.push({ role: 'assistant', content: '' });
         break;
       case 'TEXT_MESSAGE_CONTENT':
         this.listeners.onMessageDelta?.((event as any).delta);
-        // 更新最后一条助手消息的内容
         const lastMsg = this.messages[this.messages.length - 1];
         if (lastMsg && lastMsg.role === 'assistant') {
           lastMsg.content += (event as any).delta;
         }
         break;
       case 'STATE_DELTA':
-        // jsonpatch.apply_patch returns the updated document directly. Some servers may send
-        // patches that assume missing parents are created automatically. The library may throw
-        // in that case, so fall back to a permissive patcher that creates parents.
-        try {
-          this.currentState = apply_patch(this.currentState, (event as any).delta);
-        } catch (_err) {
-          this.currentState = this.applySimplePatch(this.currentState, (event as any).delta);
-        }
+        // Use Immutable Patcher to ensure React.memo works
+        this.currentState = this.applyImmutablePatch(this.currentState, (event as any).delta);
         this.listeners.onStateUpdate?.(this.currentState);
         break;
       case 'TOOL_CALL_START':
@@ -129,13 +116,9 @@ export class AGUIClient {
         this.listeners.onToolEnd?.((event as any).name, (event as any).result);
         break;
       case 'DONE':
+      case 'RUN_FINISHED':
         this.listeners.onDone?.();
         this.close();
-        break;
-      case 'RUN_FINISHED':
-        // Map AG-UI Protocol RUN_FINISHED to Done
-        this.listeners.onDone?.();
-        this.close(); // Stop EventSource from auto-reconnecting
         break;
       case 'ERROR':
         this.listeners.onError?.((event as any).message || 'Unknown Error');
@@ -150,34 +133,77 @@ export class AGUIClient {
     this.es?.close();
   }
 
-  // 重置对话历史（用于新会话）
   resetHistory() {
     this.messages = [];
   }
 
-  // Minimal JSON patcher that supports add/replace for object paths, creating parents as needed
-  private applySimplePatch(state: any, ops: Array<{ op: string; path: string; value?: any }>) {
-    const next = { ...(state || {}) };
-    for (const op of ops || []) {
+  /**
+   * Applies RFC 6902 patches immutably (Copy-on-Write).
+   * This ensures that unchanged subtrees maintain referential equality,
+   * which is crucial for React.memo optimizations.
+   */
+  private applyImmutablePatch(state: any, ops: Array<{ op: string; path: string; value?: any }>): any {
+    let nextState = state; 
+
+    for (const op of ops) {
       if (!op.path || !op.path.startsWith('/')) continue;
-      const keys = op.path
+      
+      const pathParts = op.path
         .split('/')
         .slice(1)
         .map((k) => k.replace(/~1/g, '/').replace(/~0/g, '~'));
-      let cursor: any = next;
-      for (let i = 0; i < keys.length - 1; i++) {
-        const key = keys[i];
-        if (cursor[key] == null || typeof cursor[key] !== 'object') {
-          cursor[key] = {};
-        }
-        cursor = cursor[key];
-      }
-      const leaf = keys[keys.length - 1];
-      if (op.op === 'add' || op.op === 'replace') {
-        cursor[leaf] = op.value;
-      }
-      // ignore remove/move/copy/test for this simple fallback
+        
+      nextState = this.applyOperationImmutable(nextState, pathParts, op);
     }
-    return next;
+    return nextState;
+  }
+
+  private applyOperationImmutable(root: any, path: string[], op: { op: string; value?: any }): any {
+    if (path.length === 0) {
+      // Replacing root
+      if (op.op === 'add' || op.op === 'replace') return op.value;
+      return root;
+    }
+
+    const [head, ...tail] = path;
+    
+    // Copy current level
+    let nextRoot: any;
+    if (Array.isArray(root)) {
+        nextRoot = [...root];
+        // Handle array index
+        const index = parseInt(head, 10);
+        if (tail.length === 0) {
+             // Leaf operation on array
+             if (op.op === 'add') {
+                 // splice insert
+                 if (head === '-') nextRoot.push(op.value);
+                 else nextRoot.splice(index, 0, op.value);
+             } else if (op.op === 'replace') {
+                 nextRoot[index] = op.value;
+             } else if (op.op === 'remove') {
+                 nextRoot.splice(index, 1);
+             }
+        } else {
+            // Recurse
+            nextRoot[index] = this.applyOperationImmutable(root[index], tail, op);
+        }
+    } else {
+        // Object
+        nextRoot = { ...root };
+        if (tail.length === 0) {
+            // Leaf operation on object
+            if (op.op === 'add' || op.op === 'replace') {
+                nextRoot[head] = op.value;
+            } else if (op.op === 'remove') {
+                delete nextRoot[head];
+            }
+        } else {
+            // Recurse
+            nextRoot[head] = this.applyOperationImmutable(root[head] || {}, tail, op);
+        }
+    }
+
+    return nextRoot;
   }
 }
