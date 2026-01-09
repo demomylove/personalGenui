@@ -327,6 +327,11 @@ export const chatHandler = async (req: Request, res: Response) => {
 
         // streaming callback
         const fullResponse = await LLMService.streamUI(intentPrompt, inputMsg, contextData, currentDsl, (newDsl, _) => {
+            if (!isDslUpdateStarted) {
+                const firstFrameTime = Date.now();
+                const latency = firstFrameTime - startTotal;
+                console.log(`[Perf] [3. First Frame DSL] Time to First Frame: ${latency}ms`);
+            }
             isDslUpdateStarted = true;
             
             // Compute incremental patch

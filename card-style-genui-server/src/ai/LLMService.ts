@@ -806,6 +806,8 @@ export class LLMService {
     }
 
     console.log(`[LLMService] Calling Qwen API (Streaming)...`);
+    const llmStartTime = Date.now();
+    console.log(`[Perf] [LLM Start] Request sent to Qwen at: ${new Date(llmStartTime).toISOString()}`);
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 120000); // 120s timeout for stream
@@ -851,12 +853,18 @@ export class LLMService {
           const decoder = new TextDecoder();
           console.log('[LLMService] Stream: Reader acquired.');
           let chunkCount = 0;
+          let isFirstChunk = true;
 
           while (true) {
               const { done, value } = await reader.read();
               if (done) {
                   console.log(`[LLMService] Stream: Reader done. Total chunks: ${chunkCount}, fullContent length: ${fullContent.length}`);
                   break;
+              }
+              if (isFirstChunk) {
+                  const firstChunkLatency = Date.now() - llmStartTime;
+                  console.log(`[Perf] [LLM First Chunk] Received first chunk after ${firstChunkLatency}ms`);
+                  isFirstChunk = false;
               }
               chunkCount++;
               
