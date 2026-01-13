@@ -409,6 +409,15 @@ ${routeExample}
     - Images in POI lists or cards MUST have explicit "width" and "height" properties (e.g. 80). 
     - Do not use "100%" or auto for these thumbnails.
 
+13. **POI/PLACE LIST RULES (STRICT)**:
+    - **ALL** lists of places (hotels, restaurants, attractions, shops, etc.) **MUST** use the "Coffee Shop" style.
+    - **Structure**: 
+      - Root: Center -> Column (width: 380).
+      - Items: Card (width: "100%", color: "#E8F5E9", radius: 16) -> Row (spacing: 12) -> [Image (80x80, radius 12), Column (flex: 1)].
+    - **Colors**: ALWAYS use '#E8F5E9' (Light Green) for the item background.
+    - **Images**: MUST have 'width: 80' and 'height: 80'.
+    - **NO** other styles for places. Do NOT use white cards for hotels. Use the Green/Coffee style.
+
 # Context
 ## User Query
 "${userQuery}"
