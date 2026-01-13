@@ -440,6 +440,7 @@ export default function MainScreen({
                                         <View style={styles.statusTextContainer}>
                                             <TaskCard
                                                 status={status}
+                                                headerText={statusText || 'Thinking…'}
                                                 content={currentDsl ? (
                                                     // Removed outer LinearGradient wrapper to prevent double-container issue
                                                     // TaskCard itself now handles the container style (380x200, background)
@@ -469,7 +470,7 @@ export default function MainScreen({
                                                                     node.properties.width = 380;
                                                                     node.properties.min_height = 200;
                                                                     node.properties.max_height = 380;
-                                                                    node.properties.max_height = 380;
+                                                                    node.properties.overflow = 'hidden';
                                                                     // Ensure no fixed height overrides these
                                                                     delete node.properties.height;
                                                                     delete node.properties.flex;
@@ -480,10 +481,38 @@ export default function MainScreen({
                                                                     node.properties.min_height = 200;
                                                                 }
                                                             } else if (type === 'card') {
-                                                                // Inner Items (POI Items): Flexible Width, Constrained Height
+                                                                // Inner Items (POI Items): width fill; for POI, don't constrain height
                                                                 node.properties.width = '100%'; 
-                                                                node.properties.min_height = 80;
-                                                                node.properties.max_height = 140; // Prevent temp explosion
+                                                                if (intention !== 'poi') {
+                                                                    node.properties.min_height = 80;
+                                                                    node.properties.max_height = 140; // Prevent temp explosion
+                                                                } else {
+                                                                    delete node.properties.min_height;
+                                                                    delete node.properties.max_height;
+                                                                }
+                                                            }
+
+                                                            // For POI: hard-clamp image thumbnails to fixed 64x64 to avoid row growth on onLoad
+                                                            if (intention === 'poi' && type === 'image') {
+                                                                node.properties.width = 64;
+                                                                node.properties.height = 64;
+                                                                node.properties.max_height = 64;
+                                                                node.properties.max_width = 64;
+                                                                node.properties.resize_mode = 'cover';
+                                                            }
+
+                                                            // For POI: keep row/item line height stable during streaming
+                                                            if (intention === 'poi' && type === 'row') {
+                                                                node.properties.height = 72; // fixed line height
+                                                                node.properties.min_height = 72;
+                                                                node.properties.max_height = 72;
+                                                                node.properties.align_items = 'center';
+                                                            }
+
+                                                            // For POI: keep text compact within fixed row height
+                                                            if (intention === 'poi' && type === 'text') {
+                                                                if (node.properties.max_lines === undefined) node.properties.max_lines = 2;
+                                                                if (!node.properties.ellipsize_mode) node.properties.ellipsize_mode = 'tail';
                                                             }
                                                             
                                                             if (node.children && Array.isArray(node.children)) {
@@ -502,10 +531,7 @@ export default function MainScreen({
                                                     })()
                                                 ) : undefined}
                                             />
-                                            {/* 只有在没有内容渲染时才显示状态文本，避免杂乱 */}
-                                            {(!currentDsl) && (
-                                                <Text style={styles.statusText}>{statusText}</Text>
-                                            )}
+                                            {/* 移除底部状态文本，避免与卡片顶部 Thinking 重复 */}
                                         </View>
                                     </View>
                                 </View>

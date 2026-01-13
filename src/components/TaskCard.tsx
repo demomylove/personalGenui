@@ -9,9 +9,10 @@ export type TaskStatus = 'thinking' | 'thinkingComplete' | 'drawing' | 'complete
 interface TaskCardProps {
   status: TaskStatus;
   content?: React.ReactNode;
+  headerText?: string; // show cloud status on top when thinking
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ status, content }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ status, content, headerText }) => {
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   // 根据状态控制旋转动画
@@ -63,7 +64,14 @@ const TaskCard: React.FC<TaskCardProps> = ({ status, content }) => {
           end={{x: 0, y: 1}}
           style={styles.innerGradient}
       >
-          {/* Thinking Indicator: Only show centered spinner when thinking, no text */}
+          {/* Thinking header: cloud status / message at top */}
+          {isThinking && (
+            <View style={styles.thinkingHeader}>
+              <Text style={styles.thinkingHeaderText}>{headerText || 'Thinking…'}</Text>
+            </View>
+          )}
+
+          {/* Thinking Indicator: centered spinner */}
           {isThinking && (
               <View style={styles.centerContainer}>
                   <Animated.View style={{ transform: [{ rotate: spin }] }}>
@@ -83,7 +91,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ status, content }) => {
                    {React.isValidElement(content) ? React.cloneElement(content as React.ReactElement, {
                        style: [
                            (content.props as any).style, 
-                           { width: 380, height: 200, flex: 1 } 
+                           { width: 380 } // Rely on DSL for height constraints (min 200, max 380)
                        ]
                    }) : content}
                </View>
@@ -98,7 +106,8 @@ const TaskCard: React.FC<TaskCardProps> = ({ status, content }) => {
 const styles = StyleSheet.create({
   outerContainer: {
     width: 380, // Fixed width
-    minHeight: 380, // Updated to 380 as requested
+    minHeight: 200, // Initial height target
+    // maxHeight removed to avoid truncating POI in footer
     marginVertical: 6,
     borderRadius: 12,
     alignSelf: 'flex-start',
@@ -110,6 +119,21 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     justifyContent: 'center', // Center thinking spinner
+  },
+  thinkingHeader: {
+    position: 'absolute',
+    top: 8,
+    left: 12,
+    right: 12,
+    paddingVertical: 4,
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
+    zIndex: 20,
+  },
+  thinkingHeaderText: {
+    fontSize: 12,
+    color: '#666',
+    lineHeight: 16,
   },
   centerContainer: {
       position: 'absolute',

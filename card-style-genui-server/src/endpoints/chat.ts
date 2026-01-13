@@ -579,8 +579,8 @@ export const chatOnceHandler = async (req: Request, res: Response) => {
         // Generate Prompt using the Intent + Context Data
         const intentPrompt = IntentTemplateService.getIntentSpecificPrompt(recognizedIntent, lastUserMessage, contextData, currentDsl);
 
-        // Call LLM
-        const fullResponse = await LLMService.generateUI(intentPrompt, lastUserMessage, contextData, currentDsl);
+        // Call LLM with conversation history for multi-turn context
+        const fullResponse = await LLMService.generateUI(intentPrompt, lastUserMessage, contextData, currentDsl, serverState.conversationHistory);
         const dslString = fullResponse;
 
         // Save conversation history

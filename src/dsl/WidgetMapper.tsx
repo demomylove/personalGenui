@@ -26,20 +26,25 @@ const NetworkImage: React.FC<NetworkImageProps> = ({
     originalSource,
     fallbackSource,
     style,
-    fadeDuration = 200
+    fadeDuration = 300
 }) => {
     const [imageError, setImageError] = React.useState(false);
+    const [loaded, setLoaded] = React.useState(false);
     const imageSource = imageError ? { uri: fallbackSource } : { uri: originalSource };
 
     return (
         <Image
             source={imageSource}
-            style={style}
+            style={[style, { opacity: loaded ? 1 : 0 }]} // Hide until loaded
             resizeMode={style.resizeMode as any}
             onError={(e) => {
                 console.warn('[Android] 图片加载失败:', e.nativeEvent.error);
                 setImageError(true);
+                // If error, we show fallback (or nothing?), setting loaded true ensures error/fallback is visible if desired.
+                // But user wants "nothing if not loaded". If error -> fallback, we show fallback.
+                setLoaded(true); 
             }}
+            onLoad={() => setLoaded(true)}
             fadeDuration={fadeDuration}
         />
     );
@@ -681,6 +686,9 @@ export class WidgetMapper {
      * 构建安卓端图片组件（优化加载容错与本地图片支持）
      */
     static buildAndroidImage(props: Record<string, any>, dataContext: Record<string, any>): React.ReactNode {
+        // [Safety]: Remove the null return so we can render a placeholder
+        // if (!props.source && !props.conditional_source) { return null; }
+
         let imageSource: any = props.source;
 
         // 解析条件化图片源
@@ -692,23 +700,71 @@ export class WidgetMapper {
         }
 
         // 图片样式配置（安卓端适配）
+        const isPoiThumb = props.context === 'poi_item' || props.is_thumbnail === true;
+        const thumbSize = props.thumb_size || 64;
+
+        // [Fix]: Pre-calculate IsAmapPoi here to affect default styling
+        const isAmapPoi = props.source && (typeof props.source === 'string') && (props.source.includes('autonavi') || props.source.includes('amap') || props.source.includes('wsrv.nl'));
+        
+        // [Fix]: Heuristic - If height is explicitly small (thumbnail), default width should match height, not 100%
+        // [Optimized]: Default width now defaults to thumbSize (80/64) instead of '100%' to prevent huge initial renders.
+        // We also force small default if source is missing (Placeholder state)
+        const isMissingSource = !imageSource;
+        const isSmallHeight = props.height && !isNaN(Number(props.height)) && Number(props.height) < 150;
+        const defaultWidth = (isPoiThumb || isAmapPoi || isSmallHeight || isMissingSource) ? (props.height ?? thumbSize) : thumbSize; 
+
         const imageStyle: ImageStyle = {
-            width: props.width === 'infinity' ? undefined : props.width || '100%',
-            height: props.height || 200, // 安卓端默认图片高度
+            // If width is explicitly '100%', allow it. Otherwise default to small.
+            width: props.width === 'infinity' ? undefined : (props.width ?? defaultWidth),
+            height: props.height ?? ((isPoiThumb || isAmapPoi || isMissingSource) ? thumbSize : 200),
+            // 对缩略图设置 max 边界，避免撑高父容器
+            maxHeight: isPoiThumb ? thumbSize : undefined,
+            maxWidth: isPoiThumb ? thumbSize : undefined,
             borderRadius: props.border_radius || 0,
             backgroundColor: props.color || 'transparent',
-            resizeMode: props.resize_mode || 'cover',
+            resizeMode: props.resize_mode || (isPoiThumb ? 'cover' : 'cover'),
             margin: this.parsePadding(props.margin),
             borderWidth: props.border_width || 0,
             borderColor: props.border_color || 'transparent',
         };
 
         // 1. 网络图片（安卓端 http/https 支持）
-        if (typeof imageSource === 'string' && (imageSource.startsWith('http') || imageSource.startsWith('https'))) {
+        // [Fix]: Treat missing source as network image path so we enter the strict container logic for placeholder
+        if (isMissingSource || (typeof imageSource === 'string' && (imageSource.startsWith('http') || imageSource.startsWith('https')))) {
+            // 严格缩略图容器：固定容器尺寸，内部图片100%填充，避免 onLoad 回流撑高行
+            // 修改：只要有明确宽高的图片都使用严格容器，防止布局抖动 (Remove size limit <= 80)
+            const hasExplicitSize = props.width && props.height && !isNaN(Number(props.width)) && !isNaN(Number(props.height));
+            
+            // [Fix]: Also force strict sizing for Amap POI images (detected by URL) to handle streaming race conditions
+            // We reuse the variable calculated above
+            // const isAmapPoi = imageSource.includes('autonavi') || imageSource.includes('amap') || imageSource.includes('wsrv.nl');
+            
+            const isStrictThumb = isPoiThumb || hasExplicitSize || isAmapPoi || isMissingSource;
+            if (isStrictThumb) {
+                const w = Number(props.width) || thumbSize;
+                const h = Number(props.height) || thumbSize;
+                
+                // [Fix]: Placeholder Color
+                // If source is missing, use transparent to show nothing (as requested by user)
+                const bgColor = props.color || 'transparent';
+
+                return (
+                    <View style={{ width: w, height: h, overflow: 'hidden', borderRadius: props.border_radius || 0, margin: this.parsePadding(props.margin), backgroundColor: bgColor }}>
+                        {imageSource ? (
+                            <NetworkImage
+                                originalSource={imageSource}
+                                fallbackSource="" 
+                                style={{ width: '100%', height: '100%', resizeMode: 'cover' } as ImageStyle}
+                                fadeDuration={0}
+                            />
+                        ) : null}
+                    </View>
+                );
+            }
             return (
                 <NetworkImage
                     originalSource={imageSource}
-                    fallbackSource="https://fastly.picsum.photos/id/122/300/150.jpg?hmac=FuaKxO8JrSchWqleBFEHvK_GGKrJPUQSxtTHPqm-dYs"
+                    fallbackSource=""
                     style={imageStyle}
                     fadeDuration={props.fade_duration || 200}
                 />

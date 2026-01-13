@@ -12,6 +12,9 @@ export class PromptBuilder {
     const dataString = JSON.stringify(dataContext, null, 2);
     const dslString = currentDsl ? JSON.stringify(currentDsl, null, 2) : "None (Initial Generation)";
 
+    // [Verification Log] Print server version to logs to confirm deployment
+    console.log(`[PromptBuilder] Constructing Prompt... (Version: 2026-01-13-Fix-POI-80x80-V2)`);
+
     let styleGuide = `
 # Design System & Style Guide (STRICT)
 You are a Senior UI Designer known for "Apple-style" minimalism with clean, modern aesthetics.
@@ -133,15 +136,15 @@ Output:
             { 
               "component_type": "Image", 
               "properties": { 
-                "source": "https://loremflickr.com/800/600/dog?lock=1234",
                 "width": "100%",
                 "height": 320,
+                "source": "",
                 "content_fit": "cover",
                 "border_radius": 16,
                 "color": "transparent" 
               } 
             },
-            { "component_type": "Text", "properties": { "text": "(注: 背景必须是白色, 不要红色)", "font_size": 10, "color": "#999999" } }
+
           ]
         }
       ]
@@ -172,7 +175,7 @@ Output:
                "component_type": "Row",
                "properties": { "spacing": 12, "cross_axis_alignment": "center", "width": "100%" },
                "children": [
-                 { "component_type": "Image", "properties": { "source": "http://img.com/1", "width": 64, "height": 64, "border_radius": 12, "content_fit": "cover" } },
+                 { "component_type": "Image", "properties": { "width": 80, "height": 80, "source": "http://img.com/1", "border_radius": 12, "content_fit": "cover" } },
                  {
                    "component_type": "Column",
                    "properties": { "flex": 1, "spacing": 4 },
@@ -202,7 +205,7 @@ Output:
                "component_type": "Row",
                "properties": { "spacing": 12, "cross_axis_alignment": "center", "width": "100%" },
                "children": [
-                 { "component_type": "Image", "properties": { "source": "http://img.com/2", "width": 64, "height": 64, "border_radius": 12, "content_fit": "cover" } },
+                 { "component_type": "Image", "properties": { "width": 80, "height": 80, "source": "http://img.com/2", "border_radius": 12, "content_fit": "cover" } },
                  { 
                     "component_type": "Column", 
                     "properties": { "flex": 1, "spacing": 4 },
@@ -401,6 +404,10 @@ ${routeExample}
     - If User Query explicitly asks to rename or change text (e.g., "把标题改成北京市天气", "change title to Custom Text"), you MUST use the string provided by the user EXACTLY.
     - **OVERRIDE RULE**: User's text override > Data Context value. 
     - Example: User "title to Beijing Weather", Data "Beijing" -> Result "Beijing Weather". DO NOT use "Beijing".
+    
+12. **POI THUMBNAILS**:
+    - Images in POI lists or cards MUST have explicit "width" and "height" properties (e.g. 80). 
+    - Do not use "100%" or auto for these thumbnails.
 
 # Context
 ## User Query
