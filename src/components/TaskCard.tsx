@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import {View, Text, Animated, Easing, StyleSheet, Image} from 'react-native';
 import LinearGradient from "react-native-linear-gradient";
 import {renderComponent} from "../dsl/DslRenderer.tsx";
+import SkeletonCard from './SkeletonCard';
 
 export type TaskStatus = 'thinking' | 'thinkingComplete' | 'drawing' | 'completed';
 
@@ -15,7 +16,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ status, content }) => {
 
   // 根据状态控制旋转动画
   useEffect(() => {
-    if (status === 'thinking' || status === 'drawing') {
+    if (status === 'thinking') {
       startRotation();
     } else {
       stopRotation();
@@ -29,11 +30,10 @@ const TaskCard: React.FC<TaskCardProps> = ({ status, content }) => {
         toValue: 1,
         duration: 2000,
         easing: Easing.linear,
-        useNativeDriver: true, // Use native driver for smoother performance
+        useNativeDriver: true,
       })
     ).start();
   };
-// ... existing code ...
 
   const stopRotation = () => {
     rotateAnim.stopAnimation();
@@ -45,95 +45,88 @@ const TaskCard: React.FC<TaskCardProps> = ({ status, content }) => {
     outputRange: ['0deg', '360deg'],
   });
 
-  if (status === 'completed') {
-    return (
-      <View style={styles.card}>
-        {content}
-      </View>
-    );
-  }
+  // 状态判定
+  const isThinking = status === 'thinking';
+  
+  // 始终应用固定尺寸，避免布局抖动
+  const wrapperStyle = styles.outerContainer;
 
-  // 修改模式：只要已有内容（无论是在思考还是绘制），都显示内容 + 加载指示器
-  if (content) {
-    return (
-      <View style={styles.card}>
-        {content}
-        <View style={styles.loadingOverlay}>
-          <Animated.View style={{ transform: [{ rotate: spin }] }}>
-            <Text style={{ fontSize: 16 }}>🔄</Text>
-          </Animated.View>
-          <Text style={{ marginLeft: 8, color: 'green' }}>
-             {status === 'thinking' ? '思考中...' : '更新中...'}
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
-  // 新建卡片：显示思考中/绘制中状态
   return (
+    <View style={wrapperStyle} onLayout={(event) => {
+        const {width, height} = event.nativeEvent.layout;
+        // console.warn(`[LayoutDebug] Card: ${width}x${height}`); // Visible on screen
+        console.log(`[TaskCard] onLayout: width=${width}, height=${height}. Status=${status}`);
+    }}>
       <LinearGradient
-          colors={['#F0F4FC00', '#7D47C43D']} // 渐变色数组
-          start={{x: 0.5, y: -0.3}} // 渐变起始点
-          end={{x: 0.5, y: 1.3}}   // 渐变结束点
-          locations={[0, 1]} // 颜色位置
-          style={[styles.card, {opacity: 1,padding : 15}]}
+          colors={['transparent', 'transparent']}
+          start={{x: 0, y: 0}}
+          end={{x: 0, y: 1}}
+          style={styles.innerGradient}
       >
-          {/* DSL 内容层 */}
-         {/*<View style={styles.card}>*/}
-          <StatusRow
-              label="思考规划中..."
-              icon={require('../assets/ic_thinking.png')}
-              active={status === 'thinking'}
-              rotating={status === 'thinking'}
-              spin={spin}
-              done={status === 'thinkingComplete' || status === 'drawing'}
-          />
-      {/*</View>*/}
+          {/* Thinking Indicator: Only show centered spinner when thinking, no text */}
+          {isThinking && (
+              <View style={styles.centerContainer}>
+                  <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                       <Image
+                          source={require('../assets/ic_thinking.png')}
+                          style={{width: 24, height: 24, opacity: 0.5}}
+                          resizeMode="contain"
+                      />
+                  </Animated.View>
+              </View>
+          )}
+
+          {/* Content Area: Force content to fill the 380x200 container */}
+          {content && (
+               <View style={styles.contentContainer}>
+                   {/* Use cloneElement to inject style to force the Child DSL component to expand to full size */}
+                   {React.isValidElement(content) ? React.cloneElement(content as React.ReactElement, {
+                       style: [
+                           (content.props as any).style, 
+                           { width: 380, height: 200, flex: 1 } 
+                       ]
+                   }) : content}
+               </View>
+          )}
       </LinearGradient>
-
-  );
-};
-
-const StatusRow = ({ label, icon, active, rotating, spin, done }: any) => {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      {rotating ? (
-        <Animated.View style={{ transform: [{ rotate: spin }] }}>
-            <Image
-                source={icon}
-                style={[{width: 16, height: 16}]}
-                resizeMode="contain"
-            />
-        </Animated.View>
-      ) : (
-        <Text style={{ fontSize: 16 }}>{done ? '✅' : (active ? icon : '⚪')}</Text>
-      )}
-      <Text style={{ marginLeft: 8, color: (active || done) ? 'green' : 'grey' }}>
-        {done ? (label === '思考中' ? '完成思考' : label) : label}
-      </Text>
     </View>
   );
 };
 
+// Removed StatusRow component as text descriptions are no longer needed
+
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#EEEEEE',
-    borderRadius: 12,
-    padding: 12,
+  outerContainer: {
+    width: 380, // Fixed width
+    minHeight: 380, // Updated to 380 as requested
     marginVertical: 6,
-    maxWidth: '80%',
+    borderRadius: 12,
     alignSelf: 'flex-start',
+    backgroundColor: 'transparent',
+    overflow: 'hidden',
   },
-  loadingOverlay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#DDD',
+  innerGradient: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center', // Center thinking spinner
   },
+  centerContainer: {
+      position: 'absolute',
+      top: 0, 
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 10,
+  },
+  contentContainer: {
+      flex: 1,
+      width: '100%',
+      // Ensure content sits on top if we kept the spinner, but we hide spinner when not thinking
+  },
+  // layerFull removed
 });
 
 export default TaskCard;

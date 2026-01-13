@@ -11,7 +11,8 @@ export interface DslNodeProps {
 }
 
 const DslNodeComponent: React.FC<DslNodeProps> = ({ component, data, onInteraction }) => {
-    if (!component) return null;
+    // Fix for "Unsupported widget type: null" warning
+    if (!component || !component.component_type) return null;
 
     const type = component.component_type;
     const properties = component.properties || {};

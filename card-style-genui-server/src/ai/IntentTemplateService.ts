@@ -105,9 +105,8 @@ Output:
       "component_type": "Card",
       "properties": {
         "background_color": "#E3F2FD", 
-        "padding": 24, 
-        "shape_border_radius": 24, 
         "elevation": 8,
+        "margin": 0,
         "width": 380
       },
       "children": [
@@ -274,12 +273,12 @@ Output:
   "children": [
     {
       "component_type": "Column",
-      "properties": { "spacing": 12, "padding": 16, "width": 380 },
+      "properties": { "spacing": 12, "width": 380 },
       "children": [
          { "component_type": "Text", "properties": { "text": "附近的精选好店", "font_size": 28, "font_weight": "bold", "color": "#2E7D32" } },
          {
            "component_type": "Card",
-           "properties": { "background_color": "#E8F5E9", "elevation": 4, "border_radius": 16, "padding": 8, "width": "100%" },
+           "properties": { "background_color": "#E8F5E9", "elevation": 4, "border_radius": 16, "padding": 12, "margin": 0, "width": "100%" },
            "children": [
              {
                "component_type": "Row",

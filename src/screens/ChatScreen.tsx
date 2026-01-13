@@ -9,7 +9,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import TaskCard, { TaskStatus } from '../components/TaskCard';
 import { omphalos, weather, music, poi } from '../api/senseClient';
 import { DslFactory } from '../dsl/DslFactory';
@@ -133,6 +139,7 @@ const ChatScreen = () => {
       }
 
       updateTaskStatus(taskMsgId, 'thinkingComplete');
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
       // Wait a bit for visual effect
       await new Promise(r => setTimeout(() => r(undefined), 200));
@@ -141,6 +148,7 @@ const ChatScreen = () => {
 
       if (intentions && intentions.length > 0) {
         updateTaskStatus(taskMsgId, 'drawing');
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
         for (const intention of intentions) {
           if (intention.can_execute) {
@@ -171,6 +179,7 @@ const ChatScreen = () => {
         };
 
         const widget = await DslFactory.parseAny(dslString, handleInteraction);
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         updateTaskStatus(taskMsgId, 'completed', widget);
         setLastCardMsgId(taskMsgId); // 记住此卡片 ID，供后续修改使用
       } else {

@@ -14,7 +14,9 @@ import {
     ToastAndroid,
     ImageBackground,
     NativeModules,
-    Image
+    Image,
+    LayoutAnimation,
+    UIManager
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
@@ -63,6 +65,9 @@ export default function MainScreen({
                                        initialPermissionStatus = null,
                                        onPermissionRequest
                                    }: MainScreenProps) {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+        UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
     const client = useRef(new AGUIClient(SERVER_URL)).current;
     const flatListRef = useRef<FlatList>(null);
     const [status, setStatus] = useState<TaskStatus>('thinking');
@@ -75,6 +80,20 @@ export default function MainScreen({
     const [loading, setLoading] = useState(false);
     // 新增：维护完整的 Agent 状态，用于渲染时的数据绑定
     const [agentState, setAgentState] = useState<any>({});
+    
+    // Refs to manage DSL transition state and prevent duplicates
+    const isTransitioningRef = useRef(false);
+    const dslQueueRef = useRef<any[]>([]);
+    const isStreamingFinishedRef = useRef(false);
+    const playbackTimerRef = useRef<any>(null);
+    // Refs to track state for the queue processor (to avoid stale closures)
+    const statusRef = useRef<TaskStatus>(status);
+    const currentDslRef = useRef<any>(currentDsl);
+    
+    // Keep refs in sync with state
+    useEffect(() => { statusRef.current = status; }, [status]);
+    useEffect(() => { currentDslRef.current = currentDsl; }, [currentDsl]);
+    
     const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
     const isLandscape = () => {
         const {width, height} = Dimensions.get('window');
@@ -153,6 +172,13 @@ export default function MainScreen({
         setStatusText('');
         setIntention('chat')
         setMessages((prev) => [...prev, {role: 'user', content: prompt}]);
+        
+        // Reset refs for new request
+        isTransitioningRef.current = false;
+        dslQueueRef.current = [];
+        isStreamingFinishedRef.current = false;
+        // DO NOT clear the timer here, as processQueue loop needs to keep running
+        // if (playbackTimerRef.current) clearTimeout(playbackTimerRef.current);
 
         try {
             // 1. Get Location (Best Effort)
@@ -216,15 +242,36 @@ export default function MainScreen({
 
             },
             onStateUpdate: (newState) => {
-                // 服务端通过流式“状态补丁”推送最新 Agent 状态（含 dataContext、dsl 等）
-                // 每次收到都更新本地状态，驱动 UI 重渲染
                 console.log('[MainScreen] State Update:', JSON.stringify(newState.dataContext || {}));
                 setAgentState(newState);
+
                 if (newState.dsl) {
-                    console.log('[MainScreen] State Update dsl:', JSON.stringify(newState.dsl || {}));
-                    // 当状态中出现 dsl（界面结构描述），进入绘制阶段
-                    setCurrentDsl(newState.dsl);
-                    setStatus('drawing');
+                    // Push snapshot to queue (Deep Clone to avoid reference mutation issues)
+                    try {
+                        const dslSnapshot = JSON.parse(JSON.stringify(newState.dsl));
+                        dslQueueRef.current.push(dslSnapshot);
+                        console.log(`[MainScreen] Enqueued DSL Frame. QueueSize: ${dslQueueRef.current.length}`);
+                    } catch (e) {
+                        console.error('[MainScreen] DSL Clone Error', e);
+                    }
+
+                    // If Start of a new flow (NO content, NOT transitioning), Kick off the Skeleton Sequence
+                    if (!currentDsl && !isTransitioningRef.current && dslQueueRef.current.length === 1) {
+                         console.log('[MainScreen] Starting Skeleton Sequence');
+                         isTransitioningRef.current = true;
+                         
+                         // 动画 1: Thinking -> Skeleton
+                         // LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                         setStatus('drawing');
+                         
+                         // Wait 1.0s for Skeleton to breathe, then allow playback
+                         setTimeout(() => {
+                             console.log('[MainScreen] Skeleton Phase Done. Allowing Playback.');
+                             // 动画 2: Skeleton -> Content Entry
+                             // LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                             isTransitioningRef.current = false;
+                         }, 1000);
+                    }
                 }
             },
             onToolStart: () => {
@@ -240,15 +287,51 @@ export default function MainScreen({
                 setLoading(false);
             },
             onDone: () => {
-
-                // 流式会话完成：进入 completed 态
-                setStatus('completed');
+                console.log('[MainScreen] Stream Done');
+                isStreamingFinishedRef.current = true;
             },
         });
 
-        // 不自动发起请求；等待用户点击按钮
-        return () => client.close();
+        // Loop to process DSL Queue (The "Typewriter" Engine)
+        // Runs at fixed interval to smooth out fast network bursts
+        const processQueue = () => {
+            if (isTransitioningRef.current) {
+                // Still showing skeleton, wait.
+                playbackTimerRef.current = setTimeout(processQueue, 100);
+                return;
+            }
+
+            // If we have items to play
+            if (dslQueueRef.current.length > 0) {
+                const nextFrame = dslQueueRef.current.shift();
+                console.log(`[MainScreen] Playing Frame. Remaining: ${dslQueueRef.current.length}`);
+                setCurrentDsl(nextFrame);
+                // 50ms interval = ~20fps updates. Adjust for speed.
+                playbackTimerRef.current = setTimeout(processQueue, 50); 
+            } else {
+                // Queue empty. Check if we are done.
+                if (isStreamingFinishedRef.current && statusRef.current !== 'completed') {
+                    console.log('[MainScreen] Queue empty & Stream done -> Completed');
+                    setStatus('completed');
+                    // Keep polling slowly when idle
+                    playbackTimerRef.current = setTimeout(processQueue, 200); 
+                } else {
+                    // Queue empty but stream open. Wait.
+                    playbackTimerRef.current = setTimeout(processQueue, 100);
+                }
+            }
+        };
+
+        // Start the loop
+        processQueue();
+
+        return () => {
+            client.close();
+            if (playbackTimerRef.current) clearTimeout(playbackTimerRef.current);
+        };
     }, []);
+
+
 
     useEffect(() => {
         // 当状态变为 completed：
@@ -349,49 +432,82 @@ export default function MainScreen({
                         )}
 
 
-                        // 替换 #selectedCode 部分的代码
                         ListFooterComponent={
                             (loading || currentDsl) ? (
                                 <View style={styles.loadingContainer}>
-                                    
-                                    {/* [Phase 1: Visible Streaming] Render Partial/Live DSL here */}
-                                    {currentDsl && (
-                                        <View style={{marginBottom: 10, width: '100%'}}>
-                                            <View style={styles.aiMessageContainer}>
-                                                <RobotIcon size={32}/>
-                                                <LinearGradient
-                                                    colors={['#F0F4FC00', 'rgba(125,71,196,0)']}
-                                                    start={{x: 0.5, y: -0.3}}
-                                                    end={{x: 0.5, y: 2.0}}
-                                                    locations={[0, 1]}
-                                                    style={[styles.dslContainer, {
-                                                        opacity: 1,
-                                                        padding: 0,
-                                                        maxWidth: isLandscape() ? '70%' : '80%',
-                                                        maxHeight: "auto"
-                                                    }]}
-                                                >
-                                                    {renderComponent(currentDsl, agentState.dataContext || agentState || {}, handleInteraction)}
-                                                </LinearGradient>
-                                            </View>
-                                        </View>
-                                    )}
+                                    <View style={styles.statusContainer}>
+                                        <RobotIcon size={24}/>
+                                        <View style={styles.statusTextContainer}>
+                                            <TaskCard
+                                                status={status}
+                                                content={currentDsl ? (
+                                                    // Removed outer LinearGradient wrapper to prevent double-container issue
+                                                    // TaskCard itself now handles the container style (380x200, background)
+                                                    // Inject preset size into DSL root to force "Blue Box" to be 380x200 initially
+                                                    (() => {
+                                                        if (!currentDsl) return undefined;
 
-                                    {/* Existing Status Indicator */}
-                                    {loading && (
-                                        <View style={styles.statusContainer}>
-                                            <RobotIcon size={24}/>
-                                            <View style={styles.statusTextContainer}>
-                                                <TaskCard status={status}/>
+                                                        // Final Tuned Injection Strategy:
+                                                        // 1. Root: width 380
+                                                        // 2. Depth 1 (First Child):
+                                                        //    - TYPE 'Card' (Weather/Music): width 380, minHeight 200, maxHeight 380 (Allow growth but limit)
+                                                        //    - TYPE 'Column' (POI List): width 380, minHeight 200 (Dynamic height)
+                                                        // 3. Depth 2+ (Inner Items):
+                                                        //    - width: '100%' (Fill container)
+                                                        //    - minHeight: 80 (Compact)
+                                                        const injectDimensions = (node: any, depth: number) => {
+                                                            if (!node) return;
+                                                            
+                                                            node.properties = node.properties || {};
+                                                            const type = (node.component_type || '').toLowerCase();
+                                                            
+                                                            if (depth === 0) {
+                                                                node.properties.width = 380;
+                                                            } else if (depth === 1) {
+                                                                if (type === 'card') {
+                                                                    // Weather/Music: Contrained Growth
+                                                                    node.properties.width = 380;
+                                                                    node.properties.min_height = 200;
+                                                                    node.properties.max_height = 380;
+                                                                    node.properties.max_height = 380;
+                                                                    // Ensure no fixed height overrides these
+                                                                    delete node.properties.height;
+                                                                    delete node.properties.flex;
+                                                                    node.properties.flex_grow = 0;
+                                                                } else if (type === 'column') {
+                                                                    // POI List: Fixed Width, Dynamic Height
+                                                                    node.properties.width = 380;
+                                                                    node.properties.min_height = 200;
+                                                                }
+                                                            } else if (type === 'card') {
+                                                                // Inner Items (POI Items): Flexible Width, Constrained Height
+                                                                node.properties.width = '100%'; 
+                                                                node.properties.min_height = 80;
+                                                                node.properties.max_height = 140; // Prevent temp explosion
+                                                            }
+                                                            
+                                                            if (node.children && Array.isArray(node.children)) {
+                                                                node.children.forEach((child: any) => injectDimensions(child, depth + 1));
+                                                            }
+                                                        };
+
+                                                        const dslCopy = JSON.parse(JSON.stringify(currentDsl));
+                                                        injectDimensions(dslCopy, 0);
+                                                        
+                                                        return renderComponent(
+                                                            dslCopy,
+                                                            agentState.dataContext || agentState || {}, 
+                                                            handleInteraction
+                                                        );
+                                                    })()
+                                                ) : undefined}
+                                            />
+                                            {/* 只有在没有内容渲染时才显示状态文本，避免杂乱 */}
+                                            {(!currentDsl) && (
                                                 <Text style={styles.statusText}>{statusText}</Text>
-                                                <IntentionBlurView intention={intention}>
-                                                    <TaskCard status={status}/>
-                                                    <Text style={styles.statusText}>{statusText}</Text>
-                                                </IntentionBlurView>
-                                            </View>
+                                            )}
                                         </View>
-                                    )}
-
+                                    </View>
                                 </View>
                             ) : null
                         }

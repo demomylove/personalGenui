@@ -133,6 +133,9 @@ export class WidgetMapper {
                     height: props.height || 'auto',
                     margin: this.parsePadding(props.margin),
                     borderRadius: props.border_radius || 0,
+                    minHeight: props.min_height, // Added minHeight support
+                    maxHeight: props.max_height, // Added maxHeight support
+                    gap: props.spacing || 0, // Added gap support for spacing between items
                 };
 
                 // 渲染核心内容
@@ -297,6 +300,7 @@ export class WidgetMapper {
                             justifyContent: componentType === 'center' ? 'center' : alignment.justifyContent,
                             width: props.width || '100%',
                             height: props.height || 'auto',
+                            minHeight: props.min_height, // Added minHeight for Center/Align
                             margin: this.parsePadding(props.margin),
                         }}
                     >
@@ -402,6 +406,8 @@ export class WidgetMapper {
                     borderColor: props.border_color || undefined,
                     width: props.width || 'auto',
                     height: props.height || 'auto',
+                    minHeight: props.min_height, // Added minHeight support
+                    maxHeight: props.max_height, // Added maxHeight support
                 };
 
                 const renderContent = () => (

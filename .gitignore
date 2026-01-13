@@ -62,6 +62,12 @@ xcuserdata/
  
 ## Local secrets/config (now tracked per internal project request)
 # src/config/secrets.ts
+card-style-genui-server/.env
+
+## Generated Reports & Docs
+*.html
+*.mermaid
+translated_docs_html/
 
 ## Stray localhost marker files
 card-style-genui-server/127.0.0.1:0:
