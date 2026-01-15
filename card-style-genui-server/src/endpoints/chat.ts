@@ -207,8 +207,25 @@ export const chatHandler = async (req: Request, res: Response) => {
              if(poiKeyword) {
                  sendText(`\n(Searching nearby POIs: ${poiKeyword}...)`);
                  console.log(`[Chat] POI Search: using keyword: "${poiKeyword}" (Original: "${inputMsg}")`);
+                 
+                 let poiSearchLocation = USER_LOCATION;
+                 const specificLocationName = recognizedIntent.extractedEntities?.poiLocation;
+                 
+                 if (specificLocationName) {
+                     console.log(`[Chat] POI detected specific location name: ${specificLocationName}`);
+                     sendText(`\n(Locating ${specificLocationName}...)`);
+                     const resolvedCoords = await AmapService.getCoordinates(specificLocationName);
+                     if (resolvedCoords) {
+                         poiSearchLocation = resolvedCoords;
+                         console.log(`[Chat] Resolved ${specificLocationName} -> ${poiSearchLocation}`);
+                     } else {
+                         console.warn(`[Chat] Failed to resolve ${specificLocationName}, falling back to user location.`);
+                     }
+                 }
+
                  try {
-                     let pois = await AmapService.searchPoi(poiKeyword, 'Shanghai', USER_LOCATION);
+                     // Pass the resolved poiSearchLocation (either specific or user gps)
+                     let pois = await AmapService.searchPoi(poiKeyword, 'Shanghai', poiSearchLocation);
                      if (pois.length === 0) {
                          console.warn('[Chat] No real POIs found. Falling back to Mock Data.');
                          pois = AmapService.getMockPois(poiKeyword);

@@ -321,6 +321,7 @@ export class IntentRecognitionService {
         prompt += `  "extractedEntities": {\n`;
         prompt += `    "city": "城市名 (如果适用)",\n`;
         prompt += `    "keyword": "搜索关键词 (如果适用，如POI搜索的'咖啡厅')",\n`;
+        prompt += `    "poiLocation": "POI搜索的中心地点 (如果适用，如'人民广场'、'静安寺') - 仅当用户明确指定在某地附近时提取",\n`;
         prompt += `    "origin": "出发地 (如果适用)", \n`;
         prompt += `    "destination": "目的地 (如果适用)",\n`;
         prompt += `    "description": "图片描述 (如果适用)",\n`;

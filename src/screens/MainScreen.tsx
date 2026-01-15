@@ -465,11 +465,14 @@ export default function MainScreen({
                                                             if (depth === 0) {
                                                                 node.properties.width = 380;
                                                             } else if (depth === 1) {
+                                                                // Constraints for "Card" (Depth 1)
                                                                 if (type === 'card') {
-                                                                    // Weather/Music: Contrained Growth
                                                                     node.properties.width = 380;
                                                                     node.properties.min_height = 200;
-                                                                    node.properties.max_height = 380;
+                                                                    // Allow detailed growth for lists (POI), constrain others (Weather/Music)
+                                                                    if (intention !== 'poi') {
+                                                                         node.properties.max_height = 380;
+                                                                    }
                                                                     node.properties.overflow = 'hidden';
                                                                     // Ensure no fixed height overrides these
                                                                     delete node.properties.height;
